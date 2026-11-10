@@ -1,0 +1,13 @@
+services:
+  seaweedfs:
+    image: chrislusf/seaweedfs:4.53
+    command: ["mini", "-dir=/data", "-ip.bind=0.0.0.0"]
+    restart: unless-stopped
+    ports:
+      - "${HOST:-127.0.0.1}:${SEAWEEDFS_S3_PORT:-8333}:8333"
+    environment:
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:?Set AWS_ACCESS_KEY_ID in .env}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:?Set AWS_SECRET_ACCESS_KEY in .env}
+      S3_BUCKET: ${S3_BUCKET:?Set S3_BUCKET in .env}
+    volumes:
+      - ./data/seaweedfs:/data
