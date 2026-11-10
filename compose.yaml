@@ -1,4 +1,10 @@
 services:
+  client:
+    build: ./client
+    restart: unless-stopped
+    ports:
+      - "${HOST:-127.0.0.1}:${FRONTEND_PORT:-3000}:80"
+
   postgres:
     image: postgres:18
     restart: unless-stopped
