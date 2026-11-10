@@ -5,3 +5,7 @@
 # Local service data.
 /data/postgres/
 /data/seaweedfs/
+
+# Frontend build artifacts.
+/client/node_modules/
+/client/dist/

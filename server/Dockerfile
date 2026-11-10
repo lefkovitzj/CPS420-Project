@@ -11,4 +11,4 @@ COPY main.py ./
 
 EXPOSE 5000
 
-CMD ["sh", "-c", "exec uvicorn main:app --host \"$HOST\" --port \"$PORT\""]
+CMD ["sh", "-c", "exec uvicorn main:app --host 0.0.0.0 --port \"$PORT\""]
