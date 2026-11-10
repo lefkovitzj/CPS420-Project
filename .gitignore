@@ -2,5 +2,6 @@
 .env*
 !.env.example
 
-# Local SeaweedFS storage.
+# Local service data.
+/data/postgres/
 /data/seaweedfs/
