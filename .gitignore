@@ -9,3 +9,12 @@
 # Frontend build artifacts.
 /client/node_modules/
 /client/dist/
+/client/coverage/
+
+# Backend test artifacts.
+/server/.coverage
+/server/coverage.json
+/server/coverage.xml
+/server/htmlcov/
+__pycache__/
+*.py[cod]

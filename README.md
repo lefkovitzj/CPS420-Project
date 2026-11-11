@@ -1,6 +1,9 @@
 # CPS420-Project
 The group's project for CPS 420 at the University of Dayton
 
+[![Backend tests](https://github.com/lefkovitzj/CPS420-Project/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/lefkovitzj/CPS420-Project/actions/workflows/ci.yml)
+[![Frontend tests](https://github.com/lefkovitzj/CPS420-Project/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/lefkovitzj/CPS420-Project/actions/workflows/ci.yml)
+
 :)
 ---
 
