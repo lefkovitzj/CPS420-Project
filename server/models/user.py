@@ -1,9 +1,7 @@
 import uuid
 from datetime import datetime
-
 from sqlalchemy import CheckConstraint, DateTime, String, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column
-
 from .base import Base
 
 

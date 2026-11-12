@@ -11,7 +11,6 @@ class RegisterRequest(BaseModel):
     @classmethod
     def normalize_email(cls, value: str) -> str:
         value = value.strip().lower()
-        # Friendly error if it isn't a UD address (the database also enforces this).
         if not re.fullmatch(r"[^@\s]+@udayton\.edu", value):
             raise ValueError("Email must be a valid @udayton.edu address")
         return value
@@ -24,7 +23,7 @@ class RegisterRequest(BaseModel):
         return value
  
 
-class UserRead(BaseModel):
+class UserResponse(BaseModel):
     id: UUID
     email: EmailStr
     created: datetime
