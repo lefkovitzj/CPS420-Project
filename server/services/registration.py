@@ -20,4 +20,4 @@ def register_user(db: Session, email: str, password: str) -> User:
         raise EmailAlreadyRegistered()
  
     db.refresh(user)  
-    return us
+    return user

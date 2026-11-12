@@ -1,4 +1,5 @@
 # User input validation
+import re
 from datetime import datetime
 from uuid import UUID
 from pydantic import BaseModel, EmailStr, field_validator
@@ -26,4 +27,5 @@ class RegisterRequest(BaseModel):
 class UserResponse(BaseModel):
     id: UUID
     email: EmailStr
-    created: datetime
+    created_at: datetime
+    model_config = {"from_attributes": True}
