@@ -1,12 +1,10 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import String, DateTime, Uuid, func, CheckConstraint
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+from sqlalchemy import CheckConstraint, DateTime, String, Uuid, func
+from sqlalchemy.orm import Mapped, mapped_column
 
-
-class Base(DeclarativeBase):
-    pass
+from .base import Base
 
 
 class User(Base):
@@ -42,4 +40,3 @@ class User(Base):
         server_default=func.now(),
         nullable=False
     )
-
