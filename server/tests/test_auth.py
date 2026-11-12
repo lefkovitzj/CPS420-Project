@@ -1,14 +1,12 @@
 import uuid
 from datetime import datetime, timedelta, timezone
-
 import jwt
 from fastapi.testclient import TestClient
-
 from routes.auth import ALGORITHM, SECRET_KEY  # adjust if your file is routers/auth.py
 from main import app
 
-
 client = TestClient(app)
+
 def new_email():
     return f"pytest_{uuid.uuid4().hex[:8]}@udayton.edu"
 
@@ -25,7 +23,6 @@ def make_token(sub, secret=SECRET_KEY, expires_in=timedelta(minutes=5)):
     if sub is not None:
         payload["sub"] = sub
     return jwt.encode(payload, secret, algorithm=ALGORITHM)
-
 
 def get_me(token):
     return client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
@@ -68,7 +65,6 @@ def test_register_password_too_short():
 
 def test_register_password_too_long():
     assert register(new_email(), password="a" * 129).status_code == 422
-
 
 # --- Login failures ---------------------------------------------------------
 def test_login_wrong_password():

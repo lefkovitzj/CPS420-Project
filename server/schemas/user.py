@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, EmailStr, field_validator
 
 class RegisterRequest(BaseModel):
+    """What the client must send to /auth/register (JSON body)."""
     email: str
     password: str
 
@@ -25,7 +26,9 @@ class RegisterRequest(BaseModel):
  
 
 class UserResponse(BaseModel):
+    """What the API sends back. Only the fields listed here are included."""
     id: UUID
     email: EmailStr
     created_at: datetime
+    
     model_config = {"from_attributes": True}

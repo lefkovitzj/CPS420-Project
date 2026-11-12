@@ -43,10 +43,16 @@ def get_current_user(
 
 
 @router.post("/login")
-def login(
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-    db: Annotated[Session, Depends(get_db)],
-):
+def login( form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: Annotated[Session, Depends(get_db)], ):
+    """
+    Log in with email and password.
+
+    Form fields: `username` (the email) and `password`.
+
+    Returns: `{"access_token": "<jwt>", "token_type": "bearer"}`
+    Errors: 401 if the email or password is wrong.
+    """
+    
     # Strips email for query
     email = form_data.username.strip().lower()
     user = db.scalar(select(User).where(User.email == email))
@@ -61,6 +67,7 @@ def login(
 
 @router.post("/register", response_model=UserResponse, status_code=201)
 def register(data: RegisterRequest, db: Annotated[Session, Depends(get_db)]):
+    """Create an account. Email must be @udayton.edu. Password must be between 3 and 128 characters."""
     # Creates a new user
     user = User(email=data.email, password_hash=password_hash.hash(data.password))
     db.add(user)
