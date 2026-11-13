@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 import RegisterPage from './RegisterPage';
 
@@ -50,6 +50,15 @@ async function fillAndSubmit(
 }
 
 describe('RegisterPage', () => {
+
+  beforeEach(() => {
+    vi.spyOn(globalThis, 'fetch');
+  });
+
+  afterEach(() => {
+     vi.restoreAllMocks();
+  });
+
   it('renders the heading and status message', () => {
     render(<RegisterPage />);
 
@@ -74,6 +83,16 @@ describe('RegisterPage', () => {
 
     await waitFor(() => {
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+        expect(fetch).toHaveBeenCalledWith(
+            'http://127.0.0.1:5000/auth/register',
+            expect.objectContaining({
+                method: 'POST',
+                body: JSON.stringify({ email, password }),
+            })
+        );
     });
     
   });
