@@ -6,17 +6,17 @@ import RegisterPage from './RegisterPage';
 
 const invalidCases = [
   { name: 'a non-UD email',
-    email: 'jack@gmail.com',
+    email: 'foo@gmail.com',
     password: 'something123',
     error: 'Email must be a valid @udayton.edu address',
   },
   { name: 'a too small (< three character) password',
-    email: 'jack1@udayton.edu',
+    email: 'foo1@udayton.edu',
     password: '12',
     error: 'Password must be 3 to 128 characters',
   },
   { name: 'a too large (> 128 character) password',
-    email: 'jack2@udayton.edu',
+    email: 'foo2@udayton.edu',
     password: 'a'.repeat(129),
     error: 'Password must be 3 to 128 characters',
   },
@@ -24,17 +24,17 @@ const invalidCases = [
 
 const validCases = [
   { name: 'a three character password',
-    email: 'jack@udayton.edu', 
+    email: 'foo@udayton.edu', 
     password: '123' 
   },
 
   { name: 'a 128 character password',
-    email: 'jack2@udayton.edu', 
+    email: 'foo2@udayton.edu', 
     password: 'a'.repeat(128) 
   },
 
   { name: 'a regular login',
-    email: 'jack3@udayton.edu', 
+    email: 'foo3@udayton.edu', 
     password: 'password123' 
   },
 ];
@@ -56,7 +56,7 @@ describe('RegisterPage', () => {
   });
 
   afterEach(() => {
-     vi.restoreAllMocks();
+      vi.restoreAllMocks();
   });
 
   it('renders the heading and status message', () => {
