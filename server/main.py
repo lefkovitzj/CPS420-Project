@@ -4,7 +4,7 @@ from database import engine
 from models import Base
 from routes.auth import router as auth_router
 from fastapi.middleware.cors import CORSMiddleware
-
+import os
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Create database tables on startup
@@ -14,10 +14,10 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
+    f"http://{os.environ['HOST']}:{os.environ['FRONTEND_PORT']}",
+    f"http://localhost:{os.environ['FRONTEND_PORT']}",
+    f"http://{os.environ['HOST']}:{os.environ['PORT']}",
+    f"http://localhost:{os.environ['PORT']}",
 ]
 
 app.add_middleware(
