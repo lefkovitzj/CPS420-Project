@@ -6,15 +6,15 @@ from pydantic import BaseModel, EmailStr, field_validator
 
 class RegisterRequest(BaseModel):
     """What the client must send to /auth/register (JSON body)."""
-    email: str
+    email: EmailStr
     password: str
 
-    @field_validator("email")
+    @field_validator("email", mode="after")
     @classmethod
-    def normalize_email(cls, value: str) -> str:
+    def validate_domain(cls, value: str) -> str:
         value = value.strip().lower()
-        if not re.fullmatch(r"[^@\s]+@udayton\.edu", value):
-            raise ValueError("Email must be a valid @udayton.edu address")
+        if not value.endswith("@udayton.edu"):
+            raise ValueError("Only @udayton.edu addresses are allowed")
         return value
  
     @field_validator("password")
