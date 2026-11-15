@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { describe, expect, it, vi, afterEach } from 'vitest';
 
 import RegisterPage from './RegisterPage';
 
@@ -39,6 +39,14 @@ const validCases = [
   },
 ];
 
+function mockResponse(status: number, body: unknown = {}): Response {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => body,
+  } as Response;
+}
+
 async function fillAndSubmit(
   user: ReturnType<typeof userEvent.setup>,
   email: string,
@@ -50,10 +58,6 @@ async function fillAndSubmit(
 }
 
 describe('RegisterPage', () => {
-
-  beforeEach(() => {
-    vi.spyOn(globalThis, 'fetch');
-  });
 
   afterEach(() => {
       vi.restoreAllMocks();
@@ -68,6 +72,11 @@ describe('RegisterPage', () => {
   });
 
   it.each(invalidCases)('shows an error for $name', async ({ email, password, error }) => {
+    // The server validates the input and returns 422 with a pydantic detail message.
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      mockResponse(422, { detail: [{ msg: `Value error, ${error}` }] })
+    );
+
     const user = userEvent.setup();
     render(<RegisterPage />);
 
@@ -76,6 +85,14 @@ describe('RegisterPage', () => {
   });
 
   it.each(validCases)('succeeds with $name', async ({ email, password }) => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      mockResponse(201, {
+        id: '00000000-0000-0000-0000-000000000000',
+        email,
+        created_at: '2026-01-01T00:00:00Z',
+      })
+    );
+
     const user = userEvent.setup();
     render(<RegisterPage />);
 
@@ -86,7 +103,7 @@ describe('RegisterPage', () => {
     });
 
     await waitFor(() => {
-        expect(fetch).toHaveBeenCalledWith(
+        expect(fetchMock).toHaveBeenCalledWith(
             'http://127.0.0.1:5000/auth/register',
             expect.objectContaining({
                 method: 'POST',
@@ -95,6 +112,17 @@ describe('RegisterPage', () => {
         );
     });
     
+  });
+
+  it('shows an error when the server cannot be reached', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('network error'));
+
+    const user = userEvent.setup();
+    render(<RegisterPage />);
+
+    await fillAndSubmit(user, 'foo@udayton.edu', 'password123');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not reach the server.');
   });
 
 });
