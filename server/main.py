@@ -13,11 +13,15 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+host = os.environ.get("HOST", "127.0.0.1")
+backend_port = os.environ.get("PORT", "5000")
+frontend_port = os.environ.get("FRONTEND_PORT", "3000")
+
 origins=[
-    f"http://{os.environ['HOST']}:{os.environ['FRONTEND_PORT']}",
-    f"http://localhost:{os.environ['FRONTEND_PORT']}",
-    f"http://{os.environ['HOST']}:{os.environ['PORT']}",
-    f"http://localhost:{os.environ['PORT']}",
+    f"http://{host}:{frontend_port}",
+    f"http://localhost:{frontend_port}",
+    f"http://{host}:{backend_port}",
+    f"http://localhost:{backend_port}",
 ]
 
 app.add_middleware(
