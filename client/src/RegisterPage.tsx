@@ -56,30 +56,36 @@ export default function RegisterPage() {
   }             
 
   return (
-    <main>
-
+    <main className="auth-card">
+      <p className="eyebrow">CPS420</p>
       <h1>Create Account</h1>
+      <p className="auth-description">Create your account to get started.</p>
 
-      <form onSubmit={handleSubmit}>
-          <label> Email
+      <form className="auth-form" onSubmit={handleSubmit}>
+          <label className="form-field"> Email
             <input type="email"
+                aria-describedby="registration-email-hint"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}/>
           </label>
+          <p className="field-hint" id="registration-email-hint">Use your @udayton.edu email address.</p>
 
-          <label> Password
+          <label className="form-field"> Password
             <input type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}/>
           </label>
 
-        <button type="submit">Create Account</button>
+        <button className="primary-button" type="submit">Create Account</button>
 
-        {success && <p role="status">{success}</p>}
-        {error && <p role="alert">{error}</p>}
+        {success && <p className="form-message form-message--success" role="status">{success}</p>}
+        {error && <p className="form-message form-message--error" role="alert">{error}</p>}
 
       </form>
 
+      <p className="auth-footer">
+        Already have an account? <a href="/login">Log in</a>.
+      </p>
     </main>
   );
 }

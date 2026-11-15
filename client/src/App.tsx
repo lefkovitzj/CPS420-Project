@@ -30,15 +30,17 @@ export default function App() {
 
 
   return (
-    <main>
+    <main className="auth-card">
+      <p className="eyebrow">Welcome</p>
       <h1>CPS420 Client</h1>
 
-      <p>React frontend is running.</p>
+      <p className="auth-description">React frontend is running.</p>
 
-      <button onClick={() => setCount(count + 1)}>Count: {count}</button>
+      <button className="secondary-button" onClick={() => setCount(count + 1)}>Count: {count}</button>
 
-      <p>
+      <nav className="home-actions" aria-label="Account">
         <a
+          className="primary-button"
           href="/register"
           onClick={(e) => {
             e.preventDefault();
@@ -47,10 +49,8 @@ export default function App() {
         >
           Create an Account
         </a>
-      </p>
-
-      <p>
         <a
+          className="secondary-button"
           href="/login"
           onClick={(e) => {
             e.preventDefault();
@@ -59,7 +59,7 @@ export default function App() {
         >
           Log in
         </a>
-      </p>
+      </nav>
       
     </main>
   );

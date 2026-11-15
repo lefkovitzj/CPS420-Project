@@ -43,11 +43,13 @@ export default function Login() {
   }
 
   return (
-    <main>
+    <main className="auth-card">
+      <p className="eyebrow">CPS420</p>
       <h1>Login</h1>
+      <p className="auth-description">Welcome back. Sign in to continue.</p>
 
-      <form onSubmit={handleLogin}>
-        <label> Email
+      <form className="auth-form" onSubmit={handleLogin}>
+        <label className="form-field"> Email
           <input
             type="email"
             placeholder="Email"
@@ -58,7 +60,7 @@ export default function Login() {
           />
         </label>
 
-        <label> Password
+        <label className="form-field"> Password
           <input
             type="password"
             placeholder="Password"
@@ -69,13 +71,13 @@ export default function Login() {
           />
         </label>
 
-        <button type="submit">Log in</button>
+        <button className="primary-button" type="submit">Log in</button>
 
-        {success && <p role="status">{success}</p>}
-        {error && <p role="alert">{error}</p>}
+        {success && <p className="form-message form-message--success" role="status">{success}</p>}
+        {error && <p className="form-message form-message--error" role="alert">{error}</p>}
       </form>
 
-      <p>
+      <p className="auth-footer">
         If you do not have an account, <a href="/register">please register</a>.
       </p>
     </main>
