@@ -18,7 +18,7 @@ function pageFromPath(): Page {
 
 export default function App() {
   const [count, setCount] = useState(0);
-  const [page, setPage] = useState<Page>(pageFromPath);
+  const page = pageFromPath();
 
   if (page === 'register') {
     return <RegisterPage />;
@@ -42,20 +42,12 @@ export default function App() {
         <a
           className="primary-button"
           href="/register"
-          onClick={(e) => {
-            e.preventDefault();
-            setPage('register');
-          }}
         >
           Create an Account
         </a>
         <a
           className="secondary-button"
           href="/login"
-          onClick={(e) => {
-            e.preventDefault();
-            setPage('login');
-          }}
         >
           Log in
         </a>

@@ -41,7 +41,7 @@ describe('LoginPage', () => {
     await fillAndSubmit(user, 'foo@udayton.edu', 'password123');
 
     expect(await screen.findByRole('status')).toHaveTextContent('Account logged in.');
-    expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:5000/auth/login', {
+    expect(fetchMock).toHaveBeenCalledWith('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({

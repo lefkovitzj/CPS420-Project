@@ -16,7 +16,7 @@ export default function Login() {
     try {
       // The server uses OAuth2PasswordRequestForm, so credentials must be
       // sent as form data with the email in the "username" field.
-      const response = await fetch('http://127.0.0.1:5000/auth/login', {
+      const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ username: email, password }).toString(),
