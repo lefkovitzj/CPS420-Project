@@ -2,7 +2,6 @@ name: CI
 
 on:
   push:
-    branches: [main]
   pull_request:
 
 permissions:
@@ -15,6 +14,31 @@ jobs:
     defaults:
       run:
         working-directory: server
+
+    # Throwaway values for the ephemeral Postgres service
+    env:
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: cps420
+      POSTGRES_PASSWORD: cps420-ci-password
+      POSTGRES_DB: cps420
+      JWT_SECRET: ci-only-signing-key-not-used-outside-ci
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: cps420
+          POSTGRES_USER: cps420
+          POSTGRES_PASSWORD: cps420-ci-password
+        ports:
+          - "5432:5432"
+        options: >-
+          --health-cmd "pg_isready -U cps420 -d cps420"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
