@@ -2,7 +2,7 @@ import os
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 import jwt
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jwt.exceptions import InvalidTokenError
 from pwdlib import PasswordHash
@@ -17,6 +17,7 @@ from schemas.user import RegisterRequest, UserResponse
 SECRET_KEY = os.environ["JWT_SECRET"]
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
+DASHBOARD_COOKIE = "dashboard_access"
 
 # Creates password hasher
 password_hash = PasswordHash.recommended()
@@ -25,14 +26,10 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-# Import this in any route you want to protect
-def get_current_user(
-    token: Annotated[str, Depends(oauth2_scheme)],
-    db: Annotated[Session, Depends(get_db)],
-):
+def user_from_token(token: str, db: Session, audience: str | None = None) -> User:
     try:
         # Gets user's email from decoding token
-        email = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])["sub"]
+        email = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], audience=audience)["sub"]
     except (InvalidTokenError, KeyError):
         raise HTTPException(status_code=401, detail="Invalid or expired token")
     # queries for user
@@ -42,14 +39,26 @@ def get_current_user(
     return user
 
 
+def get_current_user(
+    token: Annotated[str, Depends(oauth2_scheme)],
+    db: Annotated[Session, Depends(get_db)],
+) -> User:
+    return user_from_token(token, db)
+
+
 @router.post("/login")
-def login( form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: Annotated[Session, Depends(get_db)], ):
+def login(
+    request: Request,
+    response: Response,
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    db: Annotated[Session, Depends(get_db)],
+):
     """
     Log in with email and password.
 
     Form fields: `username` (the email) and `password`.
 
-    Returns: `{"access_token": "<jwt>", "token_type": "bearer"}`
+    Returns: `{"access_token": "<jwt>", "token_type": "bearer", "is_admin": false}`
     Errors: 401 if the email or password is wrong.
     """
     
@@ -62,7 +71,15 @@ def login( form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: Annot
     # Creates access token if it is a valid user
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     token = jwt.encode({"sub": user.email, "exp": expire}, SECRET_KEY, algorithm=ALGORITHM)
-    return {"access_token": token, "token_type": "bearer"}
+    # Browser navigation to /admin cannot attach the API's Authorization header.
+    page_token = jwt.encode(
+        {"sub": user.email, "exp": expire, "aud": DASHBOARD_COOKIE}, SECRET_KEY, algorithm=ALGORITHM
+    )
+    response.set_cookie(
+        DASHBOARD_COOKIE, page_token, path="/admin", httponly=True, samesite="strict",
+        secure=request.url.scheme == "https", max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    )
+    return {"access_token": token, "token_type": "bearer", "is_admin": user.is_admin}
 
 
 @router.post("/register", response_model=UserResponse, status_code=201)
