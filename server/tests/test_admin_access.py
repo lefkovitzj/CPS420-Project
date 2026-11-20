@@ -78,3 +78,9 @@ def test_existing_accounts_receive_the_default_role():
         conn.execute(text("UPDATE users SET is_admin = true WHERE id = 1"))
         add_admin_column(conn)
         assert conn.scalar(text("SELECT is_admin FROM users WHERE id = 1")) is True
+
+
+def test_upgraded_users_table_needs_only_a_read_only_check():
+    with engine.begin() as conn:
+        conn.execute(text("SET TRANSACTION READ ONLY"))
+        add_admin_column(conn)

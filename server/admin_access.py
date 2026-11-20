@@ -19,8 +19,15 @@ def require_admin(user: Annotated[User, Depends(get_current_user)]) -> User:
 
 
 def add_admin_column(conn: Connection) -> None:
-    # create_all creates new tables but does not upgrade an existing users table.
-    conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin boolean NOT NULL DEFAULT false"))
+    # create_all handles new installs. Only take the table's DDL lock for an upgrade.
+    has_column = conn.scalar(text("""
+        SELECT EXISTS (
+            SELECT 1 FROM pg_catalog.pg_attribute
+            WHERE attrelid = 'users'::regclass AND attname = 'is_admin' AND NOT attisdropped
+        )
+    """))
+    if not has_column:
+        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin boolean NOT NULL DEFAULT false"))
 
 
 def initialize_schema(engine: Engine) -> None:

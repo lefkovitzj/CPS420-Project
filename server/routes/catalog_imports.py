@@ -1,10 +1,12 @@
 import logging
 from datetime import datetime, timezone
+from threading import Lock
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from admin_access import require_admin
@@ -15,6 +17,10 @@ from models.catalog_import import CatalogImport
 
 router = APIRouter(prefix="/admin/imports", tags=["admin"], dependencies=[Depends(require_admin)])
 logger = logging.getLogger(__name__)
+# A worker may finish while Postgres is unavailable. Keep the terminal update
+# until a status check or new import can persist it. Startup handles process loss.
+_pending_failures: dict[int, tuple[datetime, str]] = {}
+_pending_lock = Lock()
 
 
 class ImportRequest(BaseModel):
@@ -41,6 +47,27 @@ def recover_interrupted_imports(db: Session) -> None:
     db.commit()
 
 
+def _flush_failed_imports(db: Session) -> None:
+    with _pending_lock:
+        pending = _pending_failures.copy()
+    if not pending:
+        return
+    for job_id, (finished_at, reason) in pending.items():
+        # An earlier commit might have succeeded despite a lost acknowledgement.
+        db.execute(update(CatalogImport).where(
+            CatalogImport.id == job_id, CatalogImport.status == "running"
+        ).values(status="failed", finished_at=finished_at, error=reason))
+    db.commit()
+    with _pending_lock:
+        for job_id in pending:
+            _pending_failures.pop(job_id, None)
+
+
+def _import_session(db: Session = Depends(get_db)) -> Session:
+    _flush_failed_imports(db)
+    return db
+
+
 def run_import(job_id: int, term_code: str) -> None:
     try:
         sections = scrape_banner(term_code)
@@ -58,10 +85,13 @@ def run_import(job_id: int, term_code: str) -> None:
                   if isinstance(exc, ValueError) else "Could not finish the Banner import. Check the backend log before retrying.")
         if isinstance(exc, BannerError):
             reason = str(exc)[:300]
-        with SessionLocal.begin() as db:
-            db.execute(update(CatalogImport).where(
-                CatalogImport.id == job_id, CatalogImport.status == "running").values(
-                    status="failed", finished_at=datetime.now(timezone.utc), error=reason))
+        with _pending_lock:
+            _pending_failures[job_id] = (datetime.now(timezone.utc), reason)
+        try:
+            with SessionLocal() as db:
+                _flush_failed_imports(db)
+        except SQLAlchemyError:
+            logger.exception("Could not persist import %s failure; it will be retried", job_id)
 
 
 @router.get("/terms")
@@ -74,7 +104,7 @@ def terms() -> list[dict[str, str]]:
 
 
 @router.get("/latest", response_model=ImportStatus | None)
-def latest_import(term_code: str | None = None, db: Session = Depends(get_db)):
+def latest_import(term_code: str | None = None, db: Session = Depends(_import_session)):
     query = select(CatalogImport)
     if term_code is not None:
         query = query.where(CatalogImport.term_code == term_code)
@@ -82,7 +112,7 @@ def latest_import(term_code: str | None = None, db: Session = Depends(get_db)):
 
 
 @router.get("/{job_id}", response_model=ImportStatus)
-def import_status(job_id: int, db: Session = Depends(get_db)):
+def import_status(job_id: int, db: Session = Depends(_import_session)):
     job = db.get(CatalogImport, job_id)
     if job is None:
         raise HTTPException(404, "Import not found.")
@@ -90,7 +120,7 @@ def import_status(job_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=ImportStatus, status_code=202)
-def start_import(request: ImportRequest, tasks: BackgroundTasks, db: Session = Depends(get_db)):
+def start_import(request: ImportRequest, tasks: BackgroundTasks, db: Session = Depends(_import_session)):
     # The partial unique index serializes concurrent starts, including requests
     # from separate admin tabs. Completed runs never block a fresh import.
     statement = insert(CatalogImport).values(term_code=request.term_code, status="running").on_conflict_do_nothing()
