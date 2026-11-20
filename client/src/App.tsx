@@ -1,9 +1,10 @@
 import { useState } from 'react';
+import AdminPage from './AdminPage';
 import CoursesPage from './CoursesPage';
 import LoginPage from './LoginPage';
 import RegisterPage from './RegisterPage';
 
-type Page = 'home' | 'register' | 'login' | 'courses';
+type Page = 'home' | 'register' | 'login' | 'courses' | 'admin';
 
 function pageFromPath(): Page {
   if (window.location.pathname === '/login') {
@@ -15,6 +16,7 @@ function pageFromPath(): Page {
   }
 
   if (window.location.pathname === '/courses') return 'courses';
+  if (['/admin', '/admin/'].includes(window.location.pathname)) return 'admin';
   return 'home';
 }
 
@@ -22,6 +24,7 @@ export default function App() {
   const [count, setCount] = useState(0);
   const page = pageFromPath();
 
+  if (page === 'admin') return <AdminPage />;
   if (page === 'courses') return <CoursesPage />;
 
   if (page === 'register') {

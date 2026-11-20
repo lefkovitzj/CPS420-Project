@@ -12,6 +12,7 @@ WORKDIR /app
 
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev \
+    && apt-get update && apt-get install -y --no-install-recommends libatomic1 \
     && playwright install --with-deps --only-shell chromium \
     && rm -rf /var/lib/apt/lists/*
 
