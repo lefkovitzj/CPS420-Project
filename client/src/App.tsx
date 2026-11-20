@@ -1,8 +1,9 @@
 import { useState } from 'react';
+import CoursesPage from './CoursesPage';
 import LoginPage from './LoginPage';
 import RegisterPage from './RegisterPage';
 
-type Page = 'home' | 'register' | 'login';
+type Page = 'home' | 'register' | 'login' | 'courses';
 
 function pageFromPath(): Page {
   if (window.location.pathname === '/login') {
@@ -13,12 +14,15 @@ function pageFromPath(): Page {
     return 'register';
   }
 
+  if (window.location.pathname === '/courses') return 'courses';
   return 'home';
 }
 
 export default function App() {
   const [count, setCount] = useState(0);
   const page = pageFromPath();
+
+  if (page === 'courses') return <CoursesPage />;
 
   if (page === 'register') {
     return <RegisterPage />;
@@ -51,6 +55,7 @@ export default function App() {
         >
           Log in
         </a>
+        <a className="secondary-button" href="/courses">Browse courses</a>
       </nav>
       
     </main>

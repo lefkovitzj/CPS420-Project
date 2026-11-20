@@ -73,7 +73,7 @@ export default function Login() {
 
         <button className="primary-button" type="submit">Log in</button>
 
-        {success && <p className="form-message form-message--success" role="status">{success}</p>}
+        {success && <p className="form-message form-message--success" role="status">{success} <a href="/courses">Browse courses</a></p>}
         {error && <p className="form-message form-message--error" role="alert">{error}</p>}
       </form>
 

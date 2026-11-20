@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from database import engine
 from models import Base
 from routes.auth import router as auth_router
+from routes.courses import router as courses_router
 from fastapi.middleware.cors import CORSMiddleware
 import os
 @asynccontextmanager
@@ -33,6 +34,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+app.include_router(courses_router)
 
 @app.get("/")
 def read_root() -> dict[str, str]:
