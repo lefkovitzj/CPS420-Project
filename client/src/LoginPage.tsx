@@ -5,6 +5,7 @@ import { useState } from 'react';
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -27,6 +28,7 @@ export default function Login() {
         if (data?.access_token) {
           localStorage.setItem('access_token', data.access_token);
         }
+        setIsAdmin(data?.is_admin === true);
         setSuccess('Account logged in.');
         return;
       }
@@ -73,7 +75,7 @@ export default function Login() {
 
         <button className="primary-button" type="submit">Log in</button>
 
-        {success && <p className="form-message form-message--success" role="status">{success}</p>}
+        {success && <p className="form-message form-message--success" role="status">{success} <a href="/courses">Browse courses</a>{isAdmin && <> · <a href="/admin">Admin dashboard</a></>}</p>}
         {error && <p className="form-message form-message--error" role="alert">{error}</p>}
       </form>
 
