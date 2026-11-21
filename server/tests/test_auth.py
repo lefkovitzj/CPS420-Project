@@ -169,6 +169,14 @@ def test_registration_save_failure_can_retry(clock, monkeypatch):
 
 
 # --- Login failures ---------------------------------------------------------
+def test_me_requires_bearer_authentication():
+    response = client.get("/auth/me")
+
+    assert response.status_code == 401
+    assert response.headers["www-authenticate"] == "Bearer"
+    assert response.json() == {"detail": "Not authenticated"}
+
+
 def test_login_wrong_password(clock):
     email, _, _ = enrolled_account(clock)
     assert login(email, password="wrongpassword").status_code == 401

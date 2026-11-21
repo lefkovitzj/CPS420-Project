@@ -1,12 +1,12 @@
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class MFASetupRequired(BaseModel):
     status: Literal["mfa_setup_required"] = "mfa_setup_required"
     challenge_token: str
-    provisioning_uri: str
+    provisioning_uri: str = Field(description="Use this otpauth URI to add the account to an authenticator app.")
 
 
 class MFARequired(BaseModel):
@@ -15,8 +15,8 @@ class MFARequired(BaseModel):
 
 
 class VerifyMFARequest(BaseModel):
-    challenge_token: str
-    otp: str
+    challenge_token: str = Field(description="Challenge token returned when starting this flow.")
+    otp: str = Field(description="Current six-digit authenticator code, including leading zeros.", examples=["012345"])
 
 
 class MFAConfigured(BaseModel):
@@ -24,5 +24,9 @@ class MFAConfigured(BaseModel):
 
 
 class AccessToken(BaseModel):
-    access_token: str
+    access_token: str = Field(description="JWT to send in the Authorization header as a Bearer token.")
     token_type: Literal["bearer"] = "bearer"
+
+
+class AuthError(BaseModel):
+    detail: str

@@ -5,7 +5,7 @@ from uuid import uuid4
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2PasswordRequestForm
 from jwt.exceptions import InvalidTokenError
 from pwdlib import PasswordHash
 from sqlalchemy import select
@@ -14,10 +14,11 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from models import Authenticator, TrustedDevice, User
-from schemas.mfa import AccessToken, MFAConfigured, MFARequired, MFASetupRequired, VerifyMFARequest
+from schemas.mfa import AccessToken, AuthError, MFAConfigured, MFARequired, MFASetupRequired, VerifyMFARequest
 from schemas.user import RegisterRequest, UserResponse
 from services.mfa import (
     ALGORITHM,
+    DEVICE_COOKIE,
     DEVICE_TRUST_PERIOD,
     SECRET_KEY,
     lock_challenge,
@@ -31,9 +32,26 @@ from services.mfa import (
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 password_hash = PasswordHash.recommended()
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
+bearer_scheme = HTTPBearer(
+    scheme_name="BearerAuth",
+    bearerFormat="JWT",
+    description=(
+        "Paste the `access_token` returned by sign-in or MFA verification. "
+        f"The JWT expires after {ACCESS_TOKEN_EXPIRE_MINUTES} minutes."
+    ),
+    auto_error=False,
+)
 router = APIRouter(prefix="/auth", tags=["auth"])
 Database = Annotated[Session, Depends(get_db)]
+DEVICE_COOKIE_HEADER = {
+    "Set-Cookie": {
+        "description": (
+            f"Sets the `{DEVICE_COOKIE}` cookie for this browser with `HttpOnly`, `SameSite=Lax`, "
+            "and `Path=/`. Uses `Secure` when the backend sees HTTPS or `AUTH_COOKIE_SECURE=true`."
+        ),
+        "schema": {"type": "string"},
+    },
+}
 
 
 def issue_access_token(user: User) -> AccessToken:
@@ -53,11 +71,13 @@ def commit_auth_changes(db: Session, failure_message: str) -> None:
 
 # Import this in any route you want to protect
 def get_current_user(
-    token: Annotated[str, Depends(oauth2_scheme)],
+    authorization: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
     db: Database,
 ):
+    if authorization is None:
+        raise HTTPException(status_code=401, detail="Not authenticated", headers={"WWW-Authenticate": "Bearer"})
     try:
-        email = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])["sub"]
+        email = jwt.decode(authorization.credentials, SECRET_KEY, algorithms=[ALGORITHM])["sub"]
     except (InvalidTokenError, KeyError):
         raise HTTPException(status_code=401, detail="Invalid or expired token")
     user = db.scalar(select(User).where(User.email == email))
@@ -69,7 +89,16 @@ def get_current_user(
 @router.post(
     "/login",
     response_model=AccessToken,
-    responses={202: {"model": MFARequired | MFASetupRequired}},
+    response_description="Access token issued for a trusted device.",
+    responses={
+        202: {
+            "model": MFARequired | MFASetupRequired,
+            "description": "Authenticator code or setup required. Keep the device cookie for verification.",
+            "headers": DEVICE_COOKIE_HEADER,
+        },
+        401: {"model": AuthError, "description": "Incorrect email or password."},
+        503: {"model": AuthError, "description": "Sign-in could not be started."},
+    },
 )
 def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
@@ -77,7 +106,13 @@ def login(
     response: Response,
     db: Database,
 ) -> AccessToken | JSONResponse:
-    """Verify the email and password. Request authenticator setup or a code when needed."""
+    """Send the email in the `username` form field along with `password`.
+
+    A `202` response with `mfa_required` asks for an authenticator code.
+    With `mfa_setup_required`, first add the account to the authenticator app using
+    `provisioning_uri`. In either case, send the returned `challenge_token` and the
+    current code to `POST /auth/login/verify` from the same browser.
+    """
     email = form_data.username.strip().lower()
     user = db.scalar(select(User).where(User.email == email))
     if user is None or not password_hash.verify(form_data.password, user.password_hash):
@@ -119,11 +154,27 @@ def login(
     return pending_response
 
 
-@router.post("/login/verify")
+@router.post(
+    "/login/verify",
+    response_description=(
+        "Access token issued or authenticator setup confirmed. When an access token is "
+        f"issued, the browser receives a device cookie and is trusted for {DEVICE_TRUST_PERIOD.days} days."
+    ),
+    responses={
+        200: {"headers": DEVICE_COOKIE_HEADER},
+        401: {"model": AuthError, "description": "Invalid challenge or authenticator code."},
+        409: {"model": AuthError, "description": "Authenticator already configured. Sign in again."},
+        503: {"model": AuthError, "description": "Verification could not be saved."},
+    },
+)
 def verify_login(
     data: VerifyMFARequest, request: Request, response: Response, db: Database
 ) -> AccessToken | MFAConfigured:
-    """Verify a login code, or confirm setup for an existing account."""
+    """Verify the authenticator code using the challenge from `POST /auth/login`.
+
+    A regular verification returns an `access_token`. If `status` is
+    `mfa_configured`, start sign-in again to obtain an access token.
+    """
     pending = lock_challenge(db, request, "login", data.challenge_token)
     # Serialize code consumption across devices for the same account.
     user = db.scalar(select(User).where(User.id == pending.user_id).with_for_update())
@@ -162,9 +213,23 @@ def verify_login(
     return token
 
 
-@router.post("/register", status_code=202)
+@router.post(
+    "/register",
+    status_code=202,
+    response_description="Registration is pending authenticator setup.",
+    responses={
+        202: {"headers": DEVICE_COOKIE_HEADER},
+        409: {"model": AuthError, "description": "Email already registered."},
+        503: {"model": AuthError, "description": "Registration could not be started."},
+    },
+)
 def register(data: RegisterRequest, request: Request, response: Response, db: Database) -> MFASetupRequired:
-    """Start registration and return the provisioning URI for the authenticator app."""
+    """Start registration using a University of Dayton email address.
+
+    Add the account to the authenticator app using `provisioning_uri`. Send the
+    returned `challenge_token` and the current code to `POST /auth/register/verify`
+    from the same browser to create the account.
+    """
     if db.scalar(select(User.id).where(User.email == data.email)) is not None:
         raise HTTPException(status_code=409, detail="Email already registered")
 
@@ -184,9 +249,18 @@ def register(data: RegisterRequest, request: Request, response: Response, db: Da
     return MFASetupRequired(challenge_token=challenge_token, provisioning_uri=provisioning_uri)
 
 
-@router.post("/register/verify", status_code=201)
+@router.post(
+    "/register/verify",
+    status_code=201,
+    response_description="Account created. Sign in to obtain an access token.",
+    responses={
+        401: {"model": AuthError, "description": "Invalid challenge or authenticator code."},
+        409: {"model": AuthError, "description": "Email already registered."},
+        503: {"model": AuthError, "description": "Account could not be saved."},
+    },
+)
 def verify_registration(data: VerifyMFARequest, request: Request, db: Database) -> UserResponse:
-    """Create the account after verifying the authenticator setup code."""
+    """Create the account using the challenge from `POST /auth/register` and the authenticator code."""
     pending = lock_challenge(db, request, "register", data.challenge_token)
     if pending.encrypted_secret is None:
         raise HTTPException(status_code=401, detail="Invalid authentication challenge. Submit your credentials again.")
@@ -210,6 +284,15 @@ def verify_registration(data: VerifyMFARequest, request: Request, db: Database) 
     return account
 
 
-@router.get("/me", response_model=UserResponse)
+@router.get(
+    "/me",
+    summary="Get the signed-in user",
+    response_model=UserResponse,
+    responses={401: {"model": AuthError, "description": "Bearer token is missing, invalid, or expired."}},
+)
 def me(current_user: Annotated[User, Depends(get_current_user)]):
+    """Send `Authorization: Bearer <access_token>` to retrieve the current user's profile.
+
+    Sign in again when the access token expires.
+    """
     return current_user

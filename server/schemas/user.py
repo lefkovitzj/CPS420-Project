@@ -2,12 +2,12 @@
 import re
 from datetime import datetime
 from uuid import UUID
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 class RegisterRequest(BaseModel):
     """What the client must send to /auth/register (JSON body)."""
-    email: EmailStr
-    password: str
+    email: EmailStr = Field(description="University of Dayton email address.", examples=["student@udayton.edu"])
+    password: str = Field(description="Password between 3 and 128 characters.")
 
     @field_validator("email", mode="after")
     @classmethod
