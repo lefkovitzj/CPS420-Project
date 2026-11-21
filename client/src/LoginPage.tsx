@@ -2,7 +2,19 @@
 
 import { useState } from 'react';
 
-export default function Login() {
+type MfaSetupProps = {
+  challengeToken: string;
+  provisioningUri?: string;
+};
+
+type LoginPageProps = {
+  onMfaRequired: (challenge: {
+    challengeToken: string;
+    provisioningUri?: string;
+  }) => void;
+};
+
+export default function Login({ onMfaRequired }: LoginPageProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -21,6 +33,17 @@ export default function Login() {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ username: email, password }).toString(),
       });
+
+      if (response.status === 202) {
+        const data = await response.json();
+        
+        onMfaRequired({
+          challengeToken: data.challenge_token,
+          provisioningUri: data.provisioning_uri,
+        });
+
+        return;
+      }
 
       if (response.ok) {
         const data = await response.json().catch(() => null);

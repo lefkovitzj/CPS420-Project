@@ -1,8 +1,16 @@
 import { useState } from 'react';
 import LoginPage from './LoginPage';
 import RegisterPage from './RegisterPage';
+import MfaSetupPage from './MfaSetupPage';
 
 type Page = 'home' | 'register' | 'login';
+
+type MfaChallenge = {
+  challengeToken: string;
+  provisioningUri?: string;
+  purpose: 'register' | 'login';
+};
+
 
 function pageFromPath(): Page {
   if (window.location.pathname === '/login') {
@@ -18,14 +26,26 @@ function pageFromPath(): Page {
 
 export default function App() {
   const [count, setCount] = useState(0);
+  const [mfa, setMfa] = useState<MfaChallenge | null>(null);
   const page = pageFromPath();
 
+  if (mfa) {
+    return (
+      <MfaSetupPage
+        challengeToken={mfa.challengeToken}
+        provisioningUri={mfa.provisioningUri}
+        purpose={mfa.purpose}
+      />
+    );
+  }
+
   if (page === 'register') {
-    return <RegisterPage />;
+    return <RegisterPage onMfaRequired={(challenge) => setMfa({ ...challenge, purpose: 'register' })} />;
+
   }
 
   if (page === 'login') {
-    return <LoginPage />;
+    return <LoginPage onMfaRequired={(challenge) => setMfa({ ...challenge, purpose: 'login' })} />;
   }
 
 

@@ -64,7 +64,7 @@ describe('RegisterPage', () => {
   });
 
   it('renders the heading and status message', () => {
-    render(<RegisterPage />);
+    render(<RegisterPage onMfaRequired={vi.fn()} />);
 
     expect(screen.getByRole('heading', { name: 'Create Account' })).toBeInTheDocument();
     expect(screen.getByText('Email')).toBeInTheDocument();
@@ -78,7 +78,7 @@ describe('RegisterPage', () => {
     );
 
     const user = userEvent.setup();
-    render(<RegisterPage />);
+    render(<RegisterPage onMfaRequired={vi.fn()} />);
 
     await fillAndSubmit(user, email, password);
     expect(await screen.findByText(error)).toBeInTheDocument();
@@ -94,7 +94,7 @@ describe('RegisterPage', () => {
     );
 
     const user = userEvent.setup();
-    render(<RegisterPage />);
+    render(<RegisterPage onMfaRequired={vi.fn()} />);
 
     await fillAndSubmit(user, email, password);
 
@@ -118,7 +118,7 @@ describe('RegisterPage', () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('network error'));
 
     const user = userEvent.setup();
-    render(<RegisterPage />);
+    render(<RegisterPage onMfaRequired={vi.fn()} />);
 
     await fillAndSubmit(user, 'foo@udayton.edu', 'password123');
 

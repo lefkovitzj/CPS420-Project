@@ -36,7 +36,7 @@ describe('LoginPage', () => {
       .spyOn(globalThis, 'fetch')
       .mockResolvedValue(mockResponse(200, { access_token: 'abc123', token_type: 'bearer' }));
     const user = userEvent.setup();
-    render(<LoginPage />);
+    render(<LoginPage onMfaRequired={vi.fn()} />);
 
     await fillAndSubmit(user, 'foo@udayton.edu', 'password123');
 
@@ -55,7 +55,7 @@ describe('LoginPage', () => {
   it('shows an error for incorrect credentials', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(mockResponse(401));
     const user = userEvent.setup();
-    render(<LoginPage />);
+    render(<LoginPage onMfaRequired={vi.fn()} />);
 
     await fillAndSubmit(user, 'foo@udayton.edu', 'wrongpassword');
 
@@ -65,7 +65,7 @@ describe('LoginPage', () => {
   it('shows an error when the server cannot be reached', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('network error'));
     const user = userEvent.setup();
-    render(<LoginPage />);
+    render(<LoginPage onMfaRequired={vi.fn()} />);
 
     await fillAndSubmit(user, 'foo@udayton.edu', 'password123');
 
