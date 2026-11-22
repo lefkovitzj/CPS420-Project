@@ -8,10 +8,59 @@ type MfaSetupProps = {
 
 export default function MfaSetupPage({ challengeToken, provisioningUri, purpose }: MfaSetupProps) {
   const [otp, setOtp] = useState('');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setError('');
+    setSuccess('');
+
+    const url = purpose === 'register'
+      ? '/api/auth/register/verify'
+      : '/api/auth/login/verify';
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ challenge_token: challengeToken, otp }),
+      });
+
+      if (response.ok) {
+        const data = await response.json().catch(() => null);
+
+        // Login setup case: no token, sign in again
+        if (data?.status === 'mfa_configured') {
+          setSuccess('Authenticator set up. Please sign in again.');
+          setTimeout(() => { window.location.href = '/login'; }, 1500);
+          return;
+        }
+
+        // Login verify case: token back
+        if (data?.access_token) {
+          localStorage.setItem('access_token', data.access_token);
+          setSuccess('Account logged in.');
+          return;
+        }
+
+        // Register verify case: 201, account created
+        setSuccess('Account created! Redirecting to login...');
+        setTimeout(() => { window.location.href = '/login'; }, 1500);
+        return;
+      }
+
+      if (response.status === 401) {
+        setError('Incorrect or already used authenticator code.');
+      } else {
+        setError('Verification failed. Please try again.');
+      }
+    } 
+    catch {
+      setError('Could not reach the server.');
+    }
   }
+
 
   
 
@@ -41,6 +90,8 @@ export default function MfaSetupPage({ challengeToken, provisioningUri, purpose 
         <button type="submit" className="primary-button">
           Verify code
         </button>
+          {success && <p className="form-message form-message--success" role="status">{success}</p>}
+          {error && <p className="form-message form-message--error" role="alert">{error}</p>}
       </form>
           </main>
   );
