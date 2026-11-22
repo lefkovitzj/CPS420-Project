@@ -28,6 +28,26 @@ body {
   padding: 32px 16px;
 }
 
+.app-shell {
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
+.site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 20px;
+  font-size: 14px;
+}
+
+.site-nav [aria-current="page"] {
+  color: inherit;
+  font-weight: 600;
+}
+
 .auth-card {
   width: 100%;
   max-width: 420px;

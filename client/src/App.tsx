@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useReducer, useState } from 'react';
+import { api } from './api';
 import AdminPage from './AdminPage';
 import CoursesPage from './CoursesPage';
 import LoginPage from './LoginPage';
@@ -20,21 +21,8 @@ function pageFromPath(): Page {
   return 'home';
 }
 
-export default function App() {
+function HomePage({ signedOut }: { signedOut: boolean }) {
   const [count, setCount] = useState(0);
-  const page = pageFromPath();
-
-  if (page === 'admin') return <AdminPage />;
-  if (page === 'courses') return <CoursesPage />;
-
-  if (page === 'register') {
-    return <RegisterPage />;
-  }
-
-  if (page === 'login') {
-    return <LoginPage />;
-  }
-
 
   return (
     <main className="auth-card">
@@ -45,24 +33,43 @@ export default function App() {
 
       <button className="secondary-button" onClick={() => setCount(count + 1)}>Count: {count}</button>
 
-      <nav className="home-actions" aria-label="Account">
-        <a
-          className="primary-button"
-          href="/register"
-        >
-          Create an Account
-        </a>
-        <a
-          className="secondary-button"
-          href="/login"
-        >
-          Log in
-        </a>
-        <a className="secondary-button" href="/courses">Browse courses</a>
-      </nav>
-      
+      {signedOut && <p className="home-actions">
+        <a className="primary-button" href="/register">Create an Account</a>
+      </p>}
     </main>
   );
+}
 
+export default function App() {
+  const page = pageFromPath();
+  const [account, setAccount] = useState<{ is_admin: boolean } | null>();
+  const [sessionVersion, refreshAccount] = useReducer((version: number) => version + 1, 0);
 
+  useEffect(() => {
+    if (!localStorage.getItem('access_token')) {
+      setAccount(null);
+      return;
+    }
+    const controller = new AbortController();
+    api<{ is_admin: boolean }>('/auth/me', { signal: controller.signal })
+      .then(user => { if (!controller.signal.aborted) setAccount(user); })
+      .catch(() => { if (!controller.signal.aborted) setAccount(null); });
+    return () => controller.abort();
+  }, [sessionVersion]);
+
+  return (
+    <div className="app-shell">
+      <nav className="site-nav" aria-label="Main navigation">
+        <a href="/" aria-current={page === 'home' ? 'page' : undefined}>Home</a>
+        <a href="/courses" aria-current={page === 'courses' ? 'page' : undefined}>Browse courses</a>
+        {account?.is_admin && <a href="/admin" aria-current={page === 'admin' ? 'page' : undefined}>Admin dashboard</a>}
+        {account === null && <a href="/login" aria-current={page === 'login' ? 'page' : undefined}>Log in</a>}
+      </nav>
+      {page === 'home' && <HomePage signedOut={account === null} />}
+      {page === 'register' && <RegisterPage />}
+      {page === 'login' && <LoginPage onLogin={refreshAccount} />}
+      {page === 'courses' && <CoursesPage isAdmin={account?.is_admin === true} />}
+      {page === 'admin' && <AdminPage onAccessDenied={refreshAccount} />}
+    </div>
+  );
 }

@@ -3,7 +3,7 @@ import { api } from './api';
 
 type Course = { id: number; subject: string; course_number: string; title: string };
 
-export default function CoursesPage() {
+export default function CoursesPage({ isAdmin }: { isAdmin: boolean }) {
   const [terms, setTerms] = useState<string[]>([]);
   const [term, setTerm] = useState('');
   const [query, setQuery] = useState('');
@@ -53,7 +53,10 @@ export default function CoursesPage() {
         </>}
         {loading && <p role="status">Loading courses…</p>}
         {error && <p role="alert">{error}</p>}
-        {!loading && !error && !courses.length && <p>{terms.length ? 'No matching courses.' : 'No courses have been imported yet.'}</p>}
+        {!loading && !error && !courses.length && <p>
+          {terms.length ? 'No matching courses.' : 'No courses have been imported yet.'}
+          {!terms.length && isAdmin && <> <a href="/admin#admin-imports">View import status</a></>}
+        </p>}
         {courses.length > 0 && <label className="form-field">Select a course
           <select value={selected} onChange={e => setSelected(e.target.value)}>
             <option value="">Choose a course</option>
@@ -61,7 +64,6 @@ export default function CoursesPage() {
           </select>
         </label>}
       </div>
-      <nav className="auth-footer"><a href="/">Home</a> · <a href="/login">Log in</a></nav>
     </main>
   );
 }

@@ -5,7 +5,7 @@ import './admin.css';
 
 type Account = { id: string; email: string; is_admin: boolean };
 
-export default function AdminPage() {
+export default function AdminPage({ onAccessDenied }: { onAccessDenied?: () => void }) {
   const [users, setUsers] = useState<Account[] | null>(null);
   const [denied, setDenied] = useState('');
   const [error, setError] = useState('');
@@ -17,8 +17,9 @@ export default function AdminPage() {
     if (failure.status !== 401 && failure.status !== 403) return false;
     setUsers(null);
     setDenied(failure.message);
+    onAccessDenied?.();
     return true;
-  }, []);
+  }, [onAccessDenied]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -74,7 +75,6 @@ export default function AdminPage() {
         </section>
         {users && <ImportPanel checkAccess={checkAccess} />}
       </>}
-      <nav className="auth-footer"><a href="/">Home</a></nav>
     </main>
   );
 }

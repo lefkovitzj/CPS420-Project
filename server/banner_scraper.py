@@ -7,11 +7,12 @@ import json
 import re
 from collections.abc import Iterable, Iterator
 from html import unescape
-from urllib.parse import parse_qs, urlsplit
+from itertools import count
+from urllib.parse import parse_qs, urlencode, urlsplit
 from urllib.request import urlopen
 
 from playwright.sync_api import Error as PlaywrightError
-from playwright.sync_api import Page, Response, sync_playwright
+from playwright.sync_api import APIRequestContext, APIResponse, Page, Response, sync_playwright
 
 from catalog import SectionRecord
 
@@ -42,7 +43,7 @@ def list_banner_terms() -> list[dict[str, str]]:
     return terms
 
 
-def _json_response(response: Response) -> object:
+def _json_response(response: Response | APIResponse) -> object:
     if not response.ok:
         raise BannerError(f"Banner returned HTTP {response.status}.")
     try:
@@ -75,23 +76,37 @@ def _result_pages(page: Page, term_code: str) -> Iterator[object]:
         raise BannerError("Banner did not select the requested term.")
     page.locator("#term-go").click()
 
-    # These JSON responses populate Banner's results table. Waiting for the
-    # response avoids re-reading the previous table while the next page loads.
-    action = page.locator("#search-go")
-
     def is_search_result(response: Response) -> bool:
         return urlsplit(response.url).path.endswith("/searchResults/searchResults")
 
-    while True:
-        with page.expect_response(is_search_result) as result:
-            action.click()
-        yield _json_response(result.value)
-        action = page.locator("button.paging-control.next.enabled")
+    with page.expect_response(is_search_result) as result:
+        page.locator("#search-go").click()
+    # The first search establishes the Banner session. CRN is unique within a
+    # term, so restart at offset zero with that ordering for every collected page.
+    _json_response(result.value)
+    yield from _pages_by_crn(page.request, result.value.url)
+
+
+def _pages_by_crn(request: APIRequestContext, search_url: str) -> Iterator[object]:
+    url = urlsplit(search_url)
+    query = parse_qs(url.query, keep_blank_values=True)
+    page_size = 50  # Largest page size offered by Banner's results table.
+    query["pageMaxSize"] = [str(page_size)]
+    query["sortColumn"] = ["courseReferenceNumber"]
+    query["sortDirection"] = ["asc"]
+    for offset in count(0, page_size):
+        query["pageOffset"] = [str(offset)]
+        response = request.get(url._replace(query=urlencode(query, doseq=True)).geturl())
+        try:
+            payload = _json_response(response)
+        finally:
+            response.dispose()
+        yield payload
 
 
 def _collect_sections(term_code: str, pages: Iterable[object]) -> list[SectionRecord]:
     records = []
-    seen_crns = set()
+    first_offset_by_crn = {}
     expected_total = None
     for page in pages:
         if not isinstance(page, dict) or page.get("success") is not True:
@@ -107,6 +122,7 @@ def _collect_sections(term_code: str, pages: Iterable[object]) -> list[SectionRe
         if total != expected_total or page.get("pageOffset") != len(records) or len(records) + len(rows) > total:
             raise BannerError("Banner results changed or a page was skipped during the import.")
 
+        offset = page["pageOffset"]
         for row in rows:
             keys = ("term", "courseReferenceNumber", "subject", "courseNumber", "courseTitle")
             if not isinstance(row, dict) or any(
@@ -114,9 +130,16 @@ def _collect_sections(term_code: str, pages: Iterable[object]) -> list[SectionRe
             ):
                 raise BannerError("Banner returned a section with missing course information.")
             crn = row["courseReferenceNumber"].strip()
-            if row["term"] != term_code or crn in seen_crns:
-                raise BannerError("Banner returned the wrong term or a repeated CRN.")
-            seen_crns.add(crn)
+            if row["term"] != term_code:
+                raise BannerError(
+                    f"Banner returned term {row['term']} for CRN {crn} at offset {offset}, expected {term_code}."
+                )
+            if crn in first_offset_by_crn:
+                raise BannerError(
+                    f"Banner term {term_code} repeated CRN {crn} at offset {offset} "
+                    f"(first seen at offset {first_offset_by_crn[crn]})."
+                )
+            first_offset_by_crn[crn] = offset
             records.append(
                 SectionRecord(term_code, crn, row["subject"], row["courseNumber"], unescape(row["courseTitle"]))
             )

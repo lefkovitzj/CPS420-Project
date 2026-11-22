@@ -23,6 +23,10 @@ export default function ImportPanel({ checkAccess }: { checkAccess: (e: ApiFailu
   const [starting, setStarting] = useState(false);
 
   useEffect(() => {
+    if (window.location.hash === '#admin-imports') document.getElementById('admin-imports')?.focus();
+  }, []);
+
+  useEffect(() => {
     const controller = new AbortController();
     setTermError('');
     api<Term[]>('/admin/imports/terms', { signal: controller.signal }).then(rows => {
@@ -81,7 +85,7 @@ export default function ImportPanel({ checkAccess }: { checkAccess: (e: ApiFailu
   const jobTerm = terms?.find(t => t.code === job?.term_code)?.description ?? job?.term_code;
   return (
     <section aria-labelledby="admin-imports">
-      <h2 id="admin-imports">Banner course import</h2>
+      <h2 id="admin-imports" tabIndex={-1}>Banner course import</h2>
       <label className="form-field">Academic term
         <select value={term} onChange={e => setTerm(e.target.value)} disabled={!terms?.length || starting}>
           {!terms?.length && <option value="">{termError ? 'Terms unavailable' : terms ? 'No terms available' : 'Loading terms…'}</option>}
@@ -91,7 +95,7 @@ export default function ImportPanel({ checkAccess }: { checkAccess: (e: ApiFailu
       {termError && <p role="alert">{termError} <button type="button" onClick={() => setTermAttempt(a => a + 1)}>Retry terms</button></p>}
       <button type="button" className="primary-button" onClick={start}
         disabled={!terms?.length || !term || starting || job === undefined || job?.status === 'running'}>
-        {starting ? 'Starting…' : 'Start import'}
+        {starting ? 'Starting…' : job?.status === 'failed' ? 'Retry import' : 'Start import'}
       </button>
       {jobError && <p role="alert">{jobError} <button type="button" onClick={() => setJobAttempt(a => a + 1)}>Refresh status</button></p>}
       <div role="status">
