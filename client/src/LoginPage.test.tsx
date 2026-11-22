@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
@@ -71,4 +71,26 @@ describe('LoginPage', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not reach the server.');
   });
+
+  it('calls onMfaRequired when the server returns 202', async () => {
+    const onMfaRequired = vi.fn();
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      mockResponse(202, {
+        status: 'mfa_required',
+        challenge_token: 'login-token',
+      })
+    );
+    const user = userEvent.setup();
+    render(<LoginPage onMfaRequired={onMfaRequired} />);
+
+    await fillAndSubmit(user, 'foo@udayton.edu', 'password123');
+
+    await waitFor(() => {
+      expect(onMfaRequired).toHaveBeenCalledWith({
+        challengeToken: 'login-token',
+        provisioningUri: undefined,
+      });
+    });
+  });
+
 });
