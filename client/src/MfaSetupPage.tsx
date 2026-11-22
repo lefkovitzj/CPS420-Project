@@ -11,6 +11,8 @@ export default function MfaSetupPage({ challengeToken, provisioningUri, purpose 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  const isSetup = purpose === 'register' || Boolean(provisioningUri);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
@@ -61,16 +63,16 @@ export default function MfaSetupPage({ challengeToken, provisioningUri, purpose 
     }
   }
 
-
-  
-
   return (
     <main className="auth-card">
       <p className="eyebrow">Study Group Matcher</p>
-      <h1>Set up two-factor authentication</h1>
+      <h1>{isSetup ? 'Set up two-factor authentication' : 'Enter your two-factor code'}</h1>
       <p className="auth-description">
-        Add this account to your authenticator app, then enter the code it shows.
+        {isSetup
+          ? 'Add this account to your authenticator app, then enter the code it shows.'
+          : 'Enter the code your authenticator app shows.'}
       </p>
+  
       {provisioningUri && (
         <p className="form-message">{provisioningUri}</p>
       )}

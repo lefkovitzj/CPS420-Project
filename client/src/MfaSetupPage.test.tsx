@@ -82,6 +82,12 @@ describe('MfaSetupPage', () => {
     }
   });
 
+  it('shows the verify heading for login with no provisioning URI', () => {
+    render(<MfaSetupPage challengeToken="test-token" purpose="login" />);
+
+    expect(screen.getByRole('heading', { name: 'Enter your two-factor code' })).toBeInTheDocument();
+  });
+
   it('Shows an error when the server cannot be reached', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('network error'));
     const user = userEvent.setup();
