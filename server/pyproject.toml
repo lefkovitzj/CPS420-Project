@@ -29,6 +29,7 @@ package = false
 py-version = "3.13"
 jobs = 0
 ignore = [".venv", "__pycache__", ".pytest_cache"]
+fail-under = 7.0
 
 [tool.pylint.format]
 max-line-length = 120
