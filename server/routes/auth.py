@@ -1,6 +1,7 @@
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
+
 import jwt
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -9,6 +10,7 @@ from pwdlib import PasswordHash
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+
 from database import get_db
 from models import User
 from schemas.user import RegisterRequest, UserResponse
@@ -33,8 +35,8 @@ def get_current_user(
     try:
         # Gets user's email from decoding token
         email = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])["sub"]
-    except (InvalidTokenError, KeyError):
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    except (InvalidTokenError, KeyError) as exc:
+        raise HTTPException(status_code=401, detail="Invalid or expired token") from exc
     # queries for user
     user = db.scalar(select(User).where(User.email == email))
     if user is None:
@@ -52,7 +54,7 @@ def login( form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: Annot
     Returns: `{"access_token": "<jwt>", "token_type": "bearer"}`
     Errors: 401 if the email or password is wrong.
     """
-    
+
     # Strips email for query
     email = form_data.username.strip().lower()
     user = db.scalar(select(User).where(User.email == email))
@@ -73,9 +75,9 @@ def register(data: RegisterRequest, db: Annotated[Session, Depends(get_db)]):
     db.add(user)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as exc:
         db.rollback()
-        raise HTTPException(status_code=409, detail="Email already registered")
+        raise HTTPException(status_code=409, detail="Email already registered") from exc
     db.refresh(user)
     return user
 
