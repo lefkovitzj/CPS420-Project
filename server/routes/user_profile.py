@@ -28,7 +28,7 @@ def add_user_course(
 
     if not subject or not course_number:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="subject and course_number must not be blank.",
         )
 
@@ -50,7 +50,7 @@ def add_user_course(
             user_id=current_user.id,
             course_id=course.id,
         )
-        .on_conflict_do_nothing(constraint="unique_user_course_pairing")
+        .on_conflict_do_nothing(index_elements=["user_id", "course_id"])
         .returning(UserCourse)
     )
     created = db.scalar(query)
