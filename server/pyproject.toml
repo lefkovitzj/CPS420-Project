@@ -4,12 +4,14 @@ version = "0.1.0"
 description = "FastAPI backend for the CPS 420 project"
 requires-python = ">=3.13"
 dependencies = [
+    "cryptography>=46.0.0",
     "fastapi>=0.115.0",
     "playwright>=1.65.2",
     "psycopg[binary]>=3.3.8",
     "pwdlib[argon2]>=0.3.1",
     "pydantic[email]>=2.14.3",
     "pyjwt>=2.15.1",
+    "pyotp>=2.9.0",
     "python-multipart>=0.0.33",
     "sqlalchemy>=2.1.8",
     "uvicorn[standard]>=0.34.0",

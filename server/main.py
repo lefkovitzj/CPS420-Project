@@ -15,7 +15,19 @@ async def lifespan(app: FastAPI):
         recover_interrupted_imports(db)
     yield
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(
+    title="CPS420 API",
+    description=(
+        "Use **Try it out** to test the backend. After sign-in returns an `access_token`, "
+        "paste the token into **Authorize**, then try `GET /auth/me`.\n\n"
+        "The browser stores the `device_id` cookie from a registration or sign-in "
+        "challenge and sends it back during verification. Same-origin requests through "
+        "the frontend API proxy include cookies by default. For a different allowed "
+        "origin on the same site, use `credentials: 'include'` on both the challenge "
+        "request and the verification request."
+    ),
+    lifespan=lifespan,
+)
 
 host = os.environ.get("HOST", "127.0.0.1")
 backend_port = os.environ.get("PORT", "5000")

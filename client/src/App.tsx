@@ -4,9 +4,17 @@ import AdminPage from './AdminPage';
 import CoursesPage from './CoursesPage';
 import LoginPage from './LoginPage';
 import RegisterPage from './RegisterPage';
+import MfaSetupPage from './MfaSetupPage';
 
 type Page = 'home' | 'register' | 'login' | 'courses' | 'admin';
 type Account = { id: string; is_admin: boolean };
+
+type MfaChallenge = {
+  challengeToken: string;
+  provisioningUri?: string;
+  purpose: 'register' | 'login';
+};
+
 
 function pageFromPath(): Page {
   if (window.location.pathname === '/login') {
@@ -47,6 +55,7 @@ export default function App() {
   const [sessionVersion, refreshAccount] = useReducer((version: number) => version + 1, 0);
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState('');
+  const [mfa, setMfa] = useState<MfaChallenge | null>(null);
 
   useEffect(() => {
     if (!localStorage.getItem('access_token')) {
@@ -75,6 +84,16 @@ export default function App() {
     }
   }
 
+  if (mfa) {
+    return (
+      <MfaSetupPage
+        challengeToken={mfa.challengeToken}
+        provisioningUri={mfa.provisioningUri}
+        purpose={mfa.purpose}
+      />
+    );
+  }
+
   return (
     <div className="app-shell">
       <nav className="site-nav" aria-label="Main navigation">
@@ -86,8 +105,13 @@ export default function App() {
       </nav>
       {logoutError && <p role="alert">{logoutError}</p>}
       {page === 'home' && <HomePage signedOut={account === null} />}
-      {page === 'register' && <RegisterPage />}
-      {page === 'login' && <LoginPage onLogin={refreshAccount} />}
+      {page === 'register' && <RegisterPage onMfaRequired={(challenge) => setMfa({ ...challenge, purpose: 'register' })} />}
+      {page === 'login' && (
+        <LoginPage
+          onLogin={refreshAccount}
+          onMfaRequired={(challenge) => setMfa({ ...challenge, purpose: 'login' })}
+        />
+      )}
       {page === 'courses' && <CoursesPage isAdmin={account?.is_admin === true} />}
       {page === 'admin' && <AdminPage currentUserId={account?.id} onAccessDenied={refreshAccount} />}
     </div>
