@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-export default function Login() {
+export default function Login({ onLogin }: { onLogin?: () => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -26,6 +26,7 @@ export default function Login() {
         const data = await response.json().catch(() => null);
         if (data?.access_token) {
           localStorage.setItem('access_token', data.access_token);
+          onLogin?.();
         }
         setSuccess('Account logged in.');
         return;

@@ -30,5 +30,6 @@ class UserResponse(BaseModel):
     id: UUID
     email: EmailStr
     created_at: datetime
+    is_admin: bool
     
     model_config = {"from_attributes": True}
