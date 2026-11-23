@@ -8,8 +8,8 @@ permissions:
   contents: read
 
 jobs:
-  backend:
-    name: Backend
+  backend-tests:
+    name: Backend tests
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -55,8 +55,30 @@ jobs:
       - name: Run backend tests
         run: uv run pytest --cov=main --cov-report=term-missing
 
-  frontend:
-    name: Frontend
+  backend-lint:
+    name: Backend lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: server/uv.lock
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Run Pylint
+        run: uv run pylint .
+
+  frontend-tests:
+    name: Frontend tests
     runs-on: ubuntu-latest
     defaults:
       run:

@@ -47,6 +47,7 @@ export default function RegisterPage({ onMfaRequired }: RegisterPageProps) {
           try {
             window.location.href = '/login';
           } catch {
+            // Redirect failures are not fatal, the success message is shown already.
           }
         }, 1500);
 
@@ -65,6 +66,7 @@ export default function RegisterPage({ onMfaRequired }: RegisterPageProps) {
               message = data.detail[0].msg.replace('Value error, ', '');
           }
       } catch {
+        // Ignore bad error bodies and use the default message.
       }
       setError(message);
     }

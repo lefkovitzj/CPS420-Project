@@ -20,12 +20,33 @@ dependencies = [
 [dependency-groups]
 dev = [
     "httpx>=0.28.0",
+    "pylint>=4.1.4",
     "pytest>=8.3.0",
     "pytest-cov>=6.0.0",
 ]
 
 [tool.uv]
 package = false
+
+[tool.pylint.main]
+py-version = "3.13"
+jobs = 0
+ignore = [".venv", "__pycache__", ".pytest_cache"]
+fail-under = 7.0
+
+[tool.pylint.format]
+max-line-length = 120
+
+[tool.pylint.basic]
+good-names = ["SessionLocal"]
+
+[tool.pylint."messages control"]
+disable = [
+    "missing-module-docstring",
+    "missing-class-docstring",
+    "missing-function-docstring",
+    "too-few-public-methods",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
