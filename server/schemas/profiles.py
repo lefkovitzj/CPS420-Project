@@ -1,11 +1,18 @@
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
-class AddCourseRequest(BaseModel):
+class UserCourseRequest(BaseModel):
     subject: str 
     course_number: str 
 
+    @field_validator("subject", "course_number")
+    @classmethod
+    def normalize_and_reject_blank(cls, value: str) -> str:
+        normalized = value.strip().upper()
+        if not normalized:
+            raise ValueError("must not be blank.")
+        return normalized
 
 
 class UserCourseItem(BaseModel):

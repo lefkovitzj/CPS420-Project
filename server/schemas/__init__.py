@@ -1,4 +1,4 @@
-from .profiles import AddCourseRequest, UserCourseItem
+from .profiles import UserCourseRequest, UserCourseItem
 from .user import RegisterRequest, UserResponse
 
-__all__ = ["AddCourseRequest","UserCourseItem", "RegisterRequest", "UserResponse"]
+__all__ = ["UserCourseRequest","UserCourseItem", "RegisterRequest", "UserResponse"]

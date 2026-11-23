@@ -1,14 +1,14 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import func, select, delete
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from database import get_db
 from models import Course, User, UserCourse
 from routes.auth import get_current_user
-from schemas import AddCourseRequest, UserCourseItem
+from schemas import UserCourseRequest, UserCourseItem
 
 router = APIRouter(
     prefix="/profile/courses",
@@ -16,28 +16,28 @@ router = APIRouter(
     dependencies=[Depends(get_current_user)],
 )
 
+def lookup_course(db: Session, subject: str, course_number: str) -> Course | None:
+    normalized_subject = subject.strip().upper()
+    normalized_course_number = course_number.strip().upper()
+
+    if not normalized_subject or not normalized_course_number:
+        return None
+
+    return db.scalar(
+        select(Course).where(
+            func.upper(Course.subject) == normalized_subject,
+            func.upper(Course.course_number) == normalized_course_number,
+        )
+    )
 
 @router.post("", response_model=UserCourseItem, status_code=status.HTTP_201_CREATED)
 def add_user_course(
-    payload: AddCourseRequest,
+    payload: UserCourseRequest,
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    subject = payload.subject.strip().upper()
-    course_number = payload.course_number.strip().upper()
 
-    if not subject or not course_number:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="subject and course_number must not be blank.",
-        )
-
-    course = db.scalar(
-        select(Course).where(
-            func.upper(Course.subject) == subject,
-            func.upper(Course.course_number) == course_number,
-        )
-    )
+    course = lookup_course(db, payload.subject, payload.course_number)
     if course is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -90,3 +90,34 @@ def list_user_courses(
         .order_by(Course.subject, Course.course_number)
     )
     return db.execute(query).mappings().all()
+
+
+@router.delete("", status_code=status.HTTP_204_NO_CONTENT)
+def delete_user_course(
+    payload: UserCourseRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    course = lookup_course(db, payload.subject, payload.course_number)
+    if course is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Course not found in your profile.",
+        )
+
+    deleted_id = db.scalar(
+        delete(UserCourse)
+        .where(
+            UserCourse.user_id == current_user.id,
+            UserCourse.course_id == course.id,
+        )
+        .returning(UserCourse.id)
+    )
+
+    if deleted_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Course not found in your profile.",
+        )
+
+    db.commit()
