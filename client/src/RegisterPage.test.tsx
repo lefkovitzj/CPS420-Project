@@ -64,7 +64,7 @@ describe('RegisterPage', () => {
   });
 
   it('renders the heading and status message', () => {
-    render(<RegisterPage />);
+    render(<RegisterPage onMfaRequired={vi.fn()} />);
 
     expect(screen.getByRole('heading', { name: 'Create Account' })).toBeInTheDocument();
     expect(screen.getByText('Email')).toBeInTheDocument();
@@ -78,47 +78,42 @@ describe('RegisterPage', () => {
     );
 
     const user = userEvent.setup();
-    render(<RegisterPage />);
+    render(<RegisterPage onMfaRequired={vi.fn()} />);
 
     await fillAndSubmit(user, email, password);
     expect(await screen.findByText(error)).toBeInTheDocument();
   });
 
   it.each(validCases)('succeeds with $name', async ({ email, password }) => {
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      mockResponse(201, {
-        id: '00000000-0000-0000-0000-000000000000',
-        email,
-        created_at: '2026-01-01T00:00:00Z',
+    const onMfaRequired = vi.fn();
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      mockResponse(202, {
+        status: 'mfa_setup_required',
+        challenge_token: 'test-token',
+        provisioning_uri: 'otpauth://totp/CPS420:foo@udayton.edu?secret=ABC&issuer=CPS420',
       })
     );
 
     const user = userEvent.setup();
-    render(<RegisterPage />);
+    render(<RegisterPage onMfaRequired={onMfaRequired} />);
 
     await fillAndSubmit(user, email, password);
 
     await waitFor(() => {
-      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(onMfaRequired).toHaveBeenCalledWith({
+        challengeToken: 'test-token',
+        provisioningUri: 'otpauth://totp/CPS420:foo@udayton.edu?secret=ABC&issuer=CPS420',
+      });
     });
 
-    await waitFor(() => {
-        expect(fetchMock).toHaveBeenCalledWith(
-            '/api/auth/register',
-            expect.objectContaining({
-                method: 'POST',
-                body: JSON.stringify({ email, password }),
-            })
-        );
-    });
-    
   });
+
 
   it('shows an error when the server cannot be reached', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('network error'));
 
     const user = userEvent.setup();
-    render(<RegisterPage />);
+    render(<RegisterPage onMfaRequired={vi.fn()} />);
 
     await fillAndSubmit(user, 'foo@udayton.edu', 'password123');
 

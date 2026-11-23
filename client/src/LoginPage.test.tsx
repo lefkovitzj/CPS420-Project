@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
@@ -36,7 +36,7 @@ describe('LoginPage', () => {
       .spyOn(globalThis, 'fetch')
       .mockResolvedValue(mockResponse(200, { access_token: 'abc123', token_type: 'bearer' }));
     const user = userEvent.setup();
-    render(<LoginPage />);
+    render(<LoginPage onMfaRequired={vi.fn()} />);
 
     await fillAndSubmit(user, 'foo@udayton.edu', 'password123');
 
@@ -55,7 +55,7 @@ describe('LoginPage', () => {
   it('shows an error for incorrect credentials', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(mockResponse(401));
     const user = userEvent.setup();
-    render(<LoginPage />);
+    render(<LoginPage onMfaRequired={vi.fn()} />);
 
     await fillAndSubmit(user, 'foo@udayton.edu', 'wrongpassword');
 
@@ -65,10 +65,32 @@ describe('LoginPage', () => {
   it('shows an error when the server cannot be reached', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('network error'));
     const user = userEvent.setup();
-    render(<LoginPage />);
+    render(<LoginPage onMfaRequired={vi.fn()} />);
 
     await fillAndSubmit(user, 'foo@udayton.edu', 'password123');
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not reach the server.');
   });
+
+  it('calls onMfaRequired when the server returns 202', async () => {
+    const onMfaRequired = vi.fn();
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      mockResponse(202, {
+        status: 'mfa_required',
+        challenge_token: 'login-token',
+      })
+    );
+    const user = userEvent.setup();
+    render(<LoginPage onMfaRequired={onMfaRequired} />);
+
+    await fillAndSubmit(user, 'foo@udayton.edu', 'password123');
+
+    await waitFor(() => {
+      expect(onMfaRequired).toHaveBeenCalledWith({
+        challengeToken: 'login-token',
+        provisioningUri: undefined,
+      });
+    });
+  });
+
 });

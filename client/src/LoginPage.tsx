@@ -2,7 +2,15 @@
 
 import { useState } from 'react';
 
-export default function Login() {
+type LoginPageProps = {
+  onMfaRequired?: (challenge: {
+    challengeToken: string;
+    provisioningUri?: string;
+  }) => void;
+  onLogin?: () => void;
+};
+
+export default function Login({ onMfaRequired, onLogin }: LoginPageProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -22,10 +30,22 @@ export default function Login() {
         body: new URLSearchParams({ username: email, password }).toString(),
       });
 
+      if (response.status === 202) {
+        const data = await response.json();
+        
+        onMfaRequired?.({
+          challengeToken: data.challenge_token,
+          provisioningUri: data.provisioning_uri,
+        });
+
+        return;
+      }
+
       if (response.ok) {
         const data = await response.json().catch(() => null);
         if (data?.access_token) {
           localStorage.setItem('access_token', data.access_token);
+          onLogin?.();
         }
         setSuccess('Account logged in.');
         return;

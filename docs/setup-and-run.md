@@ -96,6 +96,20 @@ Use `http://127.0.0.1:8333` as the endpoint for an S3-compatible client, along w
 `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and `S3_BUCKET` from `.env`. Replace
 `8333` if you changed `SEAWEEDFS_S3_PORT`.
 
+### Set up the first administrator
+
+On a fresh database, open the [registration page](http://127.0.0.1:3000/register)
+and create an account with your `@udayton.edu` email. Use your configured
+`FRONTEND_PORT` if it differs from `3000`. From the repository root, run this
+command with the email you registered to grant the account the admin role in PostgreSQL.
+
+```bash
+docker compose exec backend python -m admin_access <username>@udayton.edu
+```
+
+Log in and open **Admin dashboard**. From there, use **Make admin** to grant
+access to other registered users.
+
 ## 4. Stop, restart, and rebuild
 
 Stop the services while keeping their containers:

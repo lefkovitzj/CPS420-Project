@@ -1,6 +1,13 @@
 import { useState } from 'react';
 
-export default function RegisterPage() {
+type RegisterPageProps = {
+  onMfaRequired: (challenge: {
+    challengeToken: string;
+    provisioningUri: string;
+  }) => void;
+};
+
+export default function RegisterPage({ onMfaRequired }: RegisterPageProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -20,6 +27,17 @@ export default function RegisterPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password }),
       });
+
+      if (response.status === 202) {
+        const data = await response.json();
+        
+        onMfaRequired({
+          challengeToken: data.challenge_token,
+          provisioningUri: data.provisioning_uri,
+        });
+
+        return;
+      }
 
       if (response.ok) {
         setSuccess('Account created! Redirecting to login...');
