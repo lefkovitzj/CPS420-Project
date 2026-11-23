@@ -1,5 +1,7 @@
 from contextlib import closing
+from datetime import UTC, datetime, timedelta
 
+import pyotp
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import text
@@ -8,14 +10,16 @@ from sqlalchemy.orm import sessionmaker
 from admin_access import add_admin_column, promote_user
 from database import engine, get_db
 from main import app
+from routes import auth
 from routes.auth import DASHBOARD_COOKIE
 
 
 @pytest.fixture
 def accounts():
-    # A private users table makes last-admin checks independent of existing accounts.
+    # Private auth tables make last-admin checks independent of existing accounts.
     with engine.connect() as conn, conn.begin():
-        conn.execute(text("CREATE TEMP TABLE users (LIKE users INCLUDING ALL) ON COMMIT DROP"))
+        for table in ("users", "authenticators", "trusted_devices", "pending_authentications"):
+            conn.execute(text(f"CREATE TEMP TABLE {table} (LIKE {table} INCLUDING ALL) ON COMMIT DROP"))
         sessions = sessionmaker(bind=conn, join_transaction_mode="create_savepoint")
 
         def get_test_db():
@@ -29,21 +33,49 @@ def accounts():
             app.dependency_overrides.pop(get_db)
 
 
-def sign_up(client, name):
+@pytest.fixture
+def clock(monkeypatch):
+    class Clock(datetime):
+        current = datetime.now(UTC).replace(microsecond=0)
+
+        @classmethod
+        def now(cls, tz):
+            return cls.current.astimezone(tz)
+
+    monkeypatch.setattr(auth, "datetime", Clock)
+    return Clock
+
+
+def sign_up(client, name, clock):
     email = f"{name}@udayton.edu"
     registered = client.post("/auth/register", json={"email": email, "password": "abc123", "is_admin": True})
-    assert registered.status_code == 201
-    assert registered.json()["is_admin"] is False
+    assert registered.status_code == 202
+    setup = registered.json()
+    authenticator = pyotp.parse_uri(setup["provisioning_uri"])
+    verified = client.post(
+        "/auth/register/verify",
+        json={"challenge_token": setup["challenge_token"], "otp": authenticator.at(clock.current)},
+    )
+    assert verified.status_code == 201
+    assert verified.json()["is_admin"] is False
+
+    clock.current += timedelta(seconds=30)
     login = client.post("/auth/login", data={"username": email, "password": "abc123"})
-    assert login.status_code == 200
-    return registered.json()["id"], {"Authorization": f"Bearer {login.json()['access_token']}"}
+    assert login.status_code == 202
+    verified_login = client.post(
+        "/auth/login/verify",
+        json={"challenge_token": login.json()["challenge_token"], "otp": authenticator.at(clock.current)},
+    )
+    assert verified_login.status_code == 200
+    assert client.cookies.get(DASHBOARD_COOKIE) is not None
+    return verified.json()["id"], {"Authorization": f"Bearer {verified_login.json()['access_token']}"}
 
 
-def test_dashboard_and_management_authorize_against_the_current_role(accounts):
+def test_dashboard_and_management_authorize_against_the_current_role(accounts, clock):
     with closing(TestClient(app)) as client:
         assert client.get("/admin/access").status_code == 401
         assert client.get("/admin/users").status_code == 401
-        user_id, bearer = sign_up(client, "first")
+        user_id, bearer = sign_up(client, "first", clock)
         role_url = f"/admin/users/{user_id}/role"
         assert client.get("/admin/access").status_code == 403
         assert client.get("/admin/users", headers=bearer).status_code == 403
@@ -62,7 +94,7 @@ def test_dashboard_and_management_authorize_against_the_current_role(accounts):
         assert "password_hash" not in listing.json()[0]
 
         with closing(TestClient(app)) as second:
-            second_id, second_bearer = sign_up(second, "second")
+            second_id, second_bearer = sign_up(second, "second", clock)
             assert client.patch(f"/admin/users/{second_id}/role", json={"is_admin": True}, headers=bearer).status_code == 200
             self_change = client.patch(role_url, json={"is_admin": False}, headers=bearer)
             assert self_change.status_code == 409
