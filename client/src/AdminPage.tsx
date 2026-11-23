@@ -5,7 +5,9 @@ import './admin.css';
 
 type Account = { id: string; email: string; is_admin: boolean };
 
-export default function AdminPage({ onAccessDenied }: { onAccessDenied?: () => void }) {
+type AdminPageProps = { currentUserId: string | undefined; onAccessDenied?: () => void };
+
+export default function AdminPage({ currentUserId, onAccessDenied }: AdminPageProps) {
   const [users, setUsers] = useState<Account[] | null>(null);
   const [denied, setDenied] = useState('');
   const [error, setError] = useState('');
@@ -40,7 +42,6 @@ export default function AdminPage({ onAccessDenied }: { onAccessDenied?: () => v
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_admin: !user.is_admin }),
       });
-      // Reauthorize before showing the list again, including after changing our own role.
       setUsers(await api<Account[]>('/admin/users'));
       setUpdated(`Role updated for ${user.email}.`);
     } catch (e) {
@@ -65,11 +66,13 @@ export default function AdminPage({ onAccessDenied }: { onAccessDenied?: () => v
           {users && <ul className="admin-users">
             {users.map(user => <li key={user.id}>
               <div><strong>{user.email}</strong><span>{user.is_admin ? 'Administrator' : 'Student'}</span></div>
-              <button type="button" disabled={Boolean(saving)} className="secondary-button"
-                aria-label={`${user.is_admin ? 'Remove admin access from' : 'Give admin access to'} ${user.email}`}
-                onClick={() => changeRole(user)}>
-                {saving === user.id ? 'Saving…' : user.is_admin ? 'Remove admin access' : 'Make admin'}
-              </button>
+              {currentUserId && user.id !== currentUserId && (
+                <button type="button" disabled={Boolean(saving)} className="secondary-button"
+                  aria-label={`${user.is_admin ? 'Remove admin access from' : 'Give admin access to'} ${user.email}`}
+                  onClick={() => changeRole(user)}>
+                  {saving === user.id ? 'Saving…' : user.is_admin ? 'Remove admin access' : 'Make admin'}
+                </button>
+              )}
             </li>)}
           </ul>}
         </section>

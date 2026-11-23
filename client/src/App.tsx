@@ -6,6 +6,7 @@ import LoginPage from './LoginPage';
 import RegisterPage from './RegisterPage';
 
 type Page = 'home' | 'register' | 'login' | 'courses' | 'admin';
+type Account = { id: string; is_admin: boolean };
 
 function pageFromPath(): Page {
   if (window.location.pathname === '/login') {
@@ -42,8 +43,10 @@ function HomePage({ signedOut }: { signedOut: boolean }) {
 
 export default function App() {
   const page = pageFromPath();
-  const [account, setAccount] = useState<{ is_admin: boolean } | null>();
+  const [account, setAccount] = useState<Account | null>();
   const [sessionVersion, refreshAccount] = useReducer((version: number) => version + 1, 0);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState('');
 
   useEffect(() => {
     if (!localStorage.getItem('access_token')) {
@@ -51,11 +54,26 @@ export default function App() {
       return;
     }
     const controller = new AbortController();
-    api<{ is_admin: boolean }>('/auth/me', { signal: controller.signal })
+    api<Account>('/auth/me', { signal: controller.signal })
       .then(user => { if (!controller.signal.aborted) setAccount(user); })
       .catch(() => { if (!controller.signal.aborted) setAccount(null); });
     return () => controller.abort();
   }, [sessionVersion]);
+
+  async function logOut() {
+    if (!window.confirm('Are you sure you want to log out?')) return;
+    setLoggingOut(true);
+    setLogoutError('');
+    try {
+      const response = await fetch('/api/auth/logout', { method: 'POST' });
+      if (!response.ok) throw new Error();
+      localStorage.removeItem('access_token');
+      window.location.replace('/login');
+    } catch {
+      setLogoutError('Could not log out. Please try again.');
+      setLoggingOut(false);
+    }
+  }
 
   return (
     <div className="app-shell">
@@ -64,12 +82,14 @@ export default function App() {
         <a href="/courses" aria-current={page === 'courses' ? 'page' : undefined}>Browse courses</a>
         {account?.is_admin && <a href="/admin" aria-current={page === 'admin' ? 'page' : undefined}>Admin dashboard</a>}
         {account === null && <a href="/login" aria-current={page === 'login' ? 'page' : undefined}>Log in</a>}
+        {account && <button type="button" onClick={logOut} disabled={loggingOut}>Log out</button>}
       </nav>
+      {logoutError && <p role="alert">{logoutError}</p>}
       {page === 'home' && <HomePage signedOut={account === null} />}
       {page === 'register' && <RegisterPage />}
       {page === 'login' && <LoginPage onLogin={refreshAccount} />}
       {page === 'courses' && <CoursesPage isAdmin={account?.is_admin === true} />}
-      {page === 'admin' && <AdminPage onAccessDenied={refreshAccount} />}
+      {page === 'admin' && <AdminPage currentUserId={account?.id} onAccessDenied={refreshAccount} />}
     </div>
   );
 }

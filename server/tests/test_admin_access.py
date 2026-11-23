@@ -64,7 +64,12 @@ def test_dashboard_and_management_authorize_against_the_current_role(accounts):
         with closing(TestClient(app)) as second:
             second_id, second_bearer = sign_up(second, "second")
             assert client.patch(f"/admin/users/{second_id}/role", json={"is_admin": True}, headers=bearer).status_code == 200
+            self_change = client.patch(role_url, json={"is_admin": False}, headers=bearer)
+            assert self_change.status_code == 409
+            assert self_change.json()["detail"] == "You cannot remove your own admin access."
             assert second.patch(role_url, json={"is_admin": False}, headers=second_bearer).status_code == 200
+            assert second.post("/auth/logout").status_code == 204
+            assert second.get("/admin/access").status_code == 401
         assert client.get("/admin/users", headers=bearer).status_code == 403
         assert client.get("/admin/access").status_code == 403
 

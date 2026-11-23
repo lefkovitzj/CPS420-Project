@@ -48,6 +48,17 @@ body {
   font-weight: 600;
 }
 
+.site-nav button {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--color-accent);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
 .auth-card {
   width: 100%;
   max-width: 420px;

@@ -82,6 +82,13 @@ def login(
     return {"access_token": token, "token_type": "bearer", "is_admin": user.is_admin}
 
 
+@router.post("/logout", status_code=204)
+def logout() -> Response:
+    response = Response(status_code=204)
+    response.delete_cookie(DASHBOARD_COOKIE, path="/admin")
+    return response
+
+
 @router.post("/register", response_model=UserResponse, status_code=201)
 def register(data: RegisterRequest, db: Annotated[Session, Depends(get_db)]):
     """Create an account. Email must be @udayton.edu. Password must be between 3 and 128 characters."""

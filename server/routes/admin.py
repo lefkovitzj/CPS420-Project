@@ -55,8 +55,8 @@ def update_role(user_id: UUID, change: RoleChange, admin: Admin, db: Db):
     user = db.get(User, user_id, populate_existing=True)
     if user is None:
         raise HTTPException(404, "User not found")
-    if not change.is_admin and admins == {user.id}:
-        raise HTTPException(409, "At least one administrator is required")
+    if not change.is_admin and user.id == admin.id:
+        raise HTTPException(409, "You cannot remove your own admin access.")
     user.is_admin = change.is_admin
     db.commit()
     db.refresh(user)

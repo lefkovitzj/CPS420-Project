@@ -3,6 +3,19 @@ import { api } from './api';
 
 type Course = { id: number; subject: string; course_number: string; title: string };
 
+// Dayton's Banner term codes combine the calendar year and a two-digit session.
+function termLabel(code: string): string {
+  const year = code.slice(0, 4);
+  switch (code.slice(4)) {
+    case '06': return `Spring ${year} - Intersession`;
+    case '10': return `Spring ${year}`;
+    case '52': return `Summer ${year} - 2nd Session`;
+    case '53': return `Summer ${year}`;
+    case '80': return `Fall ${year}`;
+    default: return code;
+  }
+}
+
 export default function CoursesPage({ isAdmin }: { isAdmin: boolean }) {
   const [terms, setTerms] = useState<string[]>([]);
   const [term, setTerm] = useState('');
@@ -44,7 +57,7 @@ export default function CoursesPage({ isAdmin }: { isAdmin: boolean }) {
         {terms.length > 0 && <>
           <label className="form-field">Term
             <select value={term} onChange={e => setTerm(e.target.value)}>
-              {terms.map(code => <option key={code}>{code}</option>)}
+              {terms.map(code => <option key={code} value={code}>{termLabel(code)}</option>)}
             </select>
           </label>
           <label className="form-field">Search courses

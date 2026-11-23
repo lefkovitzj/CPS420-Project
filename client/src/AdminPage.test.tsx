@@ -13,24 +13,23 @@ afterEach(() => {
 const admin = { id: 'first', email: 'admin@udayton.edu', is_admin: true };
 const terms = [{ code: '202680', description: 'Fall 2026' }];
 
-it('removes dashboard controls when a role change revokes the current admin’s access', async () => {
-  let demoted = false;
+it('only offers role changes for other users and removes controls if access is revoked', async () => {
   vi.mocked(api).mockImplementation(async (path, options) => {
     if (path === '/admin/users') {
-      if (demoted) throw Object.assign(new Error('Administrator access required'), { status: 403 });
       return [admin, { id: 'second', email: 'second@udayton.edu', is_admin: true }];
     }
-    if (options?.method === 'PATCH' && path === '/admin/users/first/role') {
-      demoted = true;
-      return { ...admin, is_admin: false };
+    if (options?.method === 'PATCH' && path === '/admin/users/second/role') {
+      throw Object.assign(new Error('Administrator access required'), { status: 403 });
     }
     if (path === '/admin/imports/terms') return terms;
     if (path === '/admin/imports/latest?term_code=202680') return null;
     throw new Error(`Unexpected request: ${path}`);
   });
   const user = userEvent.setup();
-  render(<AdminPage />);
-  await user.click(await screen.findByRole('button', { name: `Remove admin access from ${admin.email}` }));
+  render(<AdminPage currentUserId={admin.id} />);
+  const changeOther = await screen.findByRole('button', { name: 'Remove admin access from second@udayton.edu' });
+  expect(screen.queryByRole('button', { name: `Remove admin access from ${admin.email}` })).not.toBeInTheDocument();
+  await user.click(changeOther);
   expect(await screen.findByRole('alert')).toHaveTextContent('Administrator access required');
   expect(screen.queryByText(admin.email)).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Start import' })).not.toBeInTheDocument();
@@ -51,7 +50,7 @@ it('follows the existing import to completion when another admin starts the term
     throw new Error(`Unexpected request: ${path}`);
   });
   const user = userEvent.setup();
-  render(<AdminPage />);
+  render(<AdminPage currentUserId={admin.id} />);
   const start = await screen.findByRole('button', { name: 'Start import' });
   await waitFor(() => expect(start).toBeEnabled());
   await user.click(start);
@@ -76,7 +75,7 @@ it('resumes the selected term’s import after switching terms or reopening the 
     throw new Error(`Unexpected request: ${path}`);
   });
   const user = userEvent.setup();
-  const firstVisit = render(<AdminPage />);
+  const firstVisit = render(<AdminPage currentUserId={admin.id} />);
   const start = await screen.findByRole('button', { name: 'Start import' });
   const select = screen.getByLabelText('Academic term');
   await waitFor(() => expect(start).toBeEnabled());
@@ -87,7 +86,7 @@ it('resumes the selected term’s import after switching terms or reopening the 
   await user.click(start);
   expect(await screen.findByText('Importing Spring 2027…')).toBeVisible();
   firstVisit.unmount();
-  render(<AdminPage />);
+  render(<AdminPage currentUserId={admin.id} />);
   expect(await screen.findByText('Importing Spring 2027…')).toBeVisible();
   await user.selectOptions(screen.getByLabelText('Academic term'), terms[0].code);
   expect(await screen.findByText('Importing Fall 2026…')).toBeVisible();
