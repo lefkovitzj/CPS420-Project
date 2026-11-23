@@ -1,4 +1,5 @@
 import react from '@vitejs/plugin-react';
+import { adminGate } from './adminGate.ts';
 import { fileURLToPath } from 'node:url';
 import { loadEnv } from 'vite';
 import { defineConfig } from 'vitest/config';
@@ -11,13 +12,15 @@ export default defineConfig(({ mode }) => {
   const host = ['0.0.0.0', '::', '[::]'].includes(bindHost) ? '127.0.0.1' : bindHost;
   const hostname = host.includes(':') && !host.startsWith('[') ? `[${host}]` : host;
 
+  const backend = `http://${hostname}:${env.BACKEND_PORT || '5000'}`;
+
   return {
-    plugins: [react()],
+    plugins: [react(), adminGate(backend)],
     server: {
       // Vite preview also uses these proxy rules.
       proxy: {
         '/api/': {
-          target: `http://${hostname}:${env.BACKEND_PORT || '5000'}`,
+          target: backend,
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api\//, '/'),
         },

@@ -2,19 +2,15 @@
 
 import { useState } from 'react';
 
-type MfaSetupProps = {
-  challengeToken: string;
-  provisioningUri?: string;
-};
-
 type LoginPageProps = {
-  onMfaRequired: (challenge: {
+  onMfaRequired?: (challenge: {
     challengeToken: string;
     provisioningUri?: string;
   }) => void;
+  onLogin?: () => void;
 };
 
-export default function Login({ onMfaRequired }: LoginPageProps) {
+export default function Login({ onMfaRequired, onLogin }: LoginPageProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -37,7 +33,7 @@ export default function Login({ onMfaRequired }: LoginPageProps) {
       if (response.status === 202) {
         const data = await response.json();
         
-        onMfaRequired({
+        onMfaRequired?.({
           challengeToken: data.challenge_token,
           provisioningUri: data.provisioning_uri,
         });
@@ -49,6 +45,7 @@ export default function Login({ onMfaRequired }: LoginPageProps) {
         const data = await response.json().catch(() => null);
         if (data?.access_token) {
           localStorage.setItem('access_token', data.access_token);
+          onLogin?.();
         }
         setSuccess('Account logged in.');
         return;

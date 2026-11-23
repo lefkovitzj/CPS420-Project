@@ -30,6 +30,7 @@ from services.mfa import (
 )
 
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
+DASHBOARD_COOKIE = "dashboard_access"
 
 password_hash = PasswordHash.recommended()
 bearer_scheme = HTTPBearer(
@@ -61,12 +62,41 @@ def issue_access_token(user: User) -> AccessToken:
     ))
 
 
+def set_dashboard_cookie(request: Request, response: Response, user: User) -> None:
+    expire = datetime.now(UTC) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    page_token = jwt.encode(
+        {"sub": user.email, "exp": expire, "aud": DASHBOARD_COOKIE},
+        SECRET_KEY,
+        algorithm=ALGORITHM,
+    )
+    response.set_cookie(
+        DASHBOARD_COOKIE,
+        page_token,
+        path="/admin",
+        httponly=True,
+        samesite="strict",
+        secure=request.url.scheme == "https",
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    )
+
+
 def commit_auth_changes(db: Session, failure_message: str) -> None:
     try:
         db.commit()
     except SQLAlchemyError as exc:
         db.rollback()
         raise HTTPException(status_code=503, detail=failure_message) from exc
+
+
+def user_from_token(token: str, db: Session, audience: str | None = None) -> User:
+    try:
+        email = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], audience=audience)["sub"]
+    except (InvalidTokenError, KeyError):
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    user = db.scalar(select(User).where(User.email == email))
+    if user is None:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    return user
 
 
 # Import this in any route you want to protect
@@ -76,14 +106,7 @@ def get_current_user(
 ):
     if authorization is None:
         raise HTTPException(status_code=401, detail="Not authenticated", headers={"WWW-Authenticate": "Bearer"})
-    try:
-        email = jwt.decode(authorization.credentials, SECRET_KEY, algorithms=[ALGORITHM])["sub"]
-    except (InvalidTokenError, KeyError):
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-    user = db.scalar(select(User).where(User.email == email))
-    if user is None:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-    return user
+    return user_from_token(authorization.credentials, db)
 
 
 @router.post(
@@ -127,6 +150,7 @@ def login(
             and trusted_device.last_mfa_at > datetime.now(UTC) - DEVICE_TRUST_PERIOD
         ):
             response.headers["Cache-Control"] = "no-store"
+            set_dashboard_cookie(request, response, user)
             return issue_access_token(user)
 
     encrypted_secret, provisioning_uri = (None, None)
@@ -152,6 +176,13 @@ def login(
     )
     set_device_cookie(request, pending_response, device_id)
     return pending_response
+
+
+@router.post("/logout", status_code=204)
+def logout() -> Response:
+    response = Response(status_code=204)
+    response.delete_cookie(DASHBOARD_COOKIE, path="/admin")
+    return response
 
 
 @router.post(
@@ -210,6 +241,7 @@ def verify_login(
     db.delete(pending)
     commit_auth_changes(db, "Sign-in could not be completed. Please sign in again.")
     set_device_cookie(request, response, device_id)
+    set_dashboard_cookie(request, response, user)
     return token
 
 

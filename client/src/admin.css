@@ -1,0 +1,62 @@
+.admin-dashboard {
+  max-width: 760px;
+}
+
+.admin-dashboard section {
+  margin-top: 28px;
+}
+
+.admin-dashboard h2 {
+  margin: 0 0 12px;
+  font-size: 20px;
+}
+
+.admin-users {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-users li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.admin-users li div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.admin-users li span {
+  display: block;
+  font-size: 14px;
+  color: var(--color-muted);
+}
+
+.admin-dashboard button.primary-button,
+.admin-dashboard button.secondary-button {
+  width: auto;
+}
+
+.admin-dashboard .primary-button {
+  margin-top: 12px;
+}
+
+.admin-dashboard select {
+  padding: 10px;
+  border: 1px solid #8795a8;
+  border-radius: 6px;
+  background: white;
+  color: inherit;
+  font: inherit;
+}
+
+.admin-dashboard button:disabled {
+  cursor: default;
+  opacity: 0.65;
+}

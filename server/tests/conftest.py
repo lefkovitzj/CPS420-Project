@@ -10,10 +10,10 @@ starts out empty.
 import pytest
 
 from database import engine
-from models import Base
+from admin_access import initialize_schema
 
 
 @pytest.fixture(scope="session", autouse=True)
 def create_schema():
-    Base.metadata.create_all(bind=engine)
+    initialize_schema(engine)
     yield
