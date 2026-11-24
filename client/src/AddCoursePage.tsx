@@ -1,18 +1,5 @@
 import {useState} from 'react'
-import React from 'react'
-
-const loadCourses= async()=>{
-    try{
-        const res = await fetch('/api/courses/search_courses');
-        let courses = await res.json;
-        
-        
-    }catch(err){
-        console.error(err);
-    }
-
-}
-
+import { stringify } from 'vitest/internal/browser';
 
 export default function AddCourse() {
     const [subject,setSubject] = useState('');
@@ -20,43 +7,39 @@ export default function AddCourse() {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
 
-    async function handleSearch(){
+    async function handleSubmit(){
         try{
-            const res = await fetch('/api/courses/search_courses',{
-                method: 'GET',
-                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: new URLSearchParams({ subject, course_number }).toString()
+            const res = await fetch('/api/user_profile/add_user_course',{
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({subject, course_number}),
             }
             );
-            if(res.ok){
-                let subject_name = subject.toString() 
-                let course_num = course_number.toString()
-                displayCourse(subject_name,course_num)
-            }
 
+            if(res.ok){
+               setSuccess('Course added!');
+               return;
+            }
+            
             // error 401: invalid course id
             if (res.status === 401) {
                 setError('Invalid Course ID');
             } else{
                 setError('Could not find course id');
             }
+          
         }catch{
             setError('Could not reach the server.');
         }
     }
-    function displayCourse(subject_name:string, course_num:string){
-        <h1> Add {subject_name} {course_num} ?
-            <button className="secondary-button" type="submit">Add Course</button>
-        </h1>
-        
-    }
+
     
     return(
-    <main> className="auth-card"
+    <main className="auth-card">
       <p className="eyebrow">CPS420</p>
       <h1>Add Course</h1>
       <p className="auth-description">Add a course to your profile.</p>
-        <form className="AddCourse" >
+        <form className="AddCourse"  onSubmit={handleSubmit}>
             <label className="form-field"> Subject
                 
                     <input
@@ -64,6 +47,7 @@ export default function AddCourse() {
                         value={subject}
                         type="subject"
                         onChange={(e) => setSubject(e.target.value)}
+                        required
 
                     ></input>
             </label>
@@ -75,19 +59,22 @@ export default function AddCourse() {
                         value={course_number}
                         type="course_number"
                         onChange={(e) => setCourse_Number(e.target.value)}
+                        required
                         
-                    
                     ></input>
                     </label>
-                
-            
+
+        <button className="secondary-button" type="submit">Add Course</button>
+        
+        {success && <p className="form-message form-message--success" role="status">{success}</p>}
+        {error && <p className="form-message form-message--error" role="alert">{error}</p>}
+        
         </form>
+
+        <p className="auth-footer">
+            Check your courses here: <a href="/login">Courselist</a>.
+        </p>
         </main>
         
     )
 }
-
-
-
-
-

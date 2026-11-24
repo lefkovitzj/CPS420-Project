@@ -173,6 +173,7 @@ a:hover {
   background: #fff;
   border-color: var(--color-border);
   color: #172b4d;
+  margin-top: 10px;
 }
 
 .secondary-button:hover {
