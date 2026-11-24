@@ -5,8 +5,9 @@ import CoursesPage from './CoursesPage';
 import LoginPage from './LoginPage';
 import RegisterPage from './RegisterPage';
 import MfaSetupPage from './MfaSetupPage';
+import AddCoursePage from './AddCoursePage'
 
-type Page = 'home' | 'register' | 'login' | 'courses' | 'admin';
+type Page = 'home' | 'register' | 'login' | 'courses' | 'admin' | 'addcourse';
 type Account = { id: string; is_admin: boolean };
 
 type MfaChallenge = {
@@ -23,6 +24,10 @@ function pageFromPath(): Page {
 
   if (window.location.pathname === '/register') {
     return 'register';
+  }
+
+  if(window.location.pathname =='/addcourse'){
+    return 'addcourse'
   }
 
   if (window.location.pathname === '/courses') return 'courses';
@@ -99,6 +104,7 @@ export default function App() {
       <nav className="site-nav" aria-label="Main navigation">
         <a href="/" aria-current={page === 'home' ? 'page' : undefined}>Home</a>
         <a href="/courses" aria-current={page === 'courses' ? 'page' : undefined}>Browse courses</a>
+        <a href="/addcourse" aria-current={page === 'addcourse' ? 'page' : undefined}>Add Course</a>
         {account?.is_admin && <a href="/admin" aria-current={page === 'admin' ? 'page' : undefined}>Admin dashboard</a>}
         {account === null && <a href="/login" aria-current={page === 'login' ? 'page' : undefined}>Log in</a>}
         {account && <button type="button" onClick={logOut} disabled={loggingOut}>Log out</button>}
@@ -106,6 +112,7 @@ export default function App() {
       {logoutError && <p role="alert">{logoutError}</p>}
       {page === 'home' && <HomePage signedOut={account === null} />}
       {page === 'register' && <RegisterPage onMfaRequired={(challenge) => setMfa({ ...challenge, purpose: 'register' })} />}
+      {page == 'addcourse' && <AddCoursePage/>}
       {page === 'login' && (
         <LoginPage
           onLogin={refreshAccount}
