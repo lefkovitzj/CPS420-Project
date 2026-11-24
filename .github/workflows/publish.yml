@@ -1,0 +1,47 @@
+name: Publish images
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    name: Publish ${{ matrix.image }} image
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: cps420-project-backend
+            context: ./server
+          - image: cps420-project-frontend
+            context: ./client
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      # GHCR enforces lowercase image namespaces
+      - name: Compute lowercase image namespace
+        id: vars
+        run: echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image
+        run: |
+          docker build "${{ matrix.context }}" \
+            --tag "ghcr.io/${{ steps.vars.outputs.owner }}/${{ matrix.image }}:${{ github.sha }}"
+
+      - name: Push image
+        run: |
+          docker push "ghcr.io/${{ steps.vars.outputs.owner }}/${{ matrix.image }}:${{ github.sha }}"
