@@ -1,3 +1,4 @@
+import { QRCodeSVG } from 'qrcode.react';
 import { useState } from 'react';
 
 type MfaSetupProps = {
@@ -71,12 +72,18 @@ export default function MfaSetupPage({ challengeToken, provisioningUri, purpose,
       <h1>{isSetup ? 'Set up two-factor authentication' : 'Enter your two-factor code'}</h1>
       <p className="auth-description">
         {isSetup
-          ? 'Add this account to your authenticator app, then enter the code it shows.'
+          ? 'Scan this QR code with your authenticator app, then enter the six-digit code it shows.'
           : 'Enter the code your authenticator app shows.'}
       </p>
-  
+
       {provisioningUri && (
-        <p className="form-message">{provisioningUri}</p>
+        <QRCodeSVG
+          className="mfa-qr-code"
+          value={provisioningUri}
+          title="Authenticator setup QR code"
+          size={200}
+          marginSize={4}
+        />
       )}
 
       <form className="auth-form" onSubmit={handleSubmit}>
