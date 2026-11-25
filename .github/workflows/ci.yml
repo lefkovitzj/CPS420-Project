@@ -86,8 +86,7 @@ jobs:
       run:
         working-directory: server
 
-    # Import-time configuration only. The engine is created lazily, so these
-    # placeholders let the app construct without a running Postgres service.
+    # Throwaway values for the build test
     env:
       POSTGRES_USER: build
       POSTGRES_PASSWORD: build
@@ -154,7 +153,5 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # tsc --noEmit catches type errors that Vitest's esbuild transform
-      # strips without checking.
       - name: Type-check and bundle
         run: npm run build
