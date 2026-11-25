@@ -10,6 +10,7 @@ permissions:
 jobs:
   backend-tests:
     name: Backend tests
+    needs: backend-lint
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -57,6 +58,7 @@ jobs:
 
   backend-lint:
     name: Backend lint
+    needs: backend-build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -110,6 +112,7 @@ jobs:
 
   frontend-tests:
     name: Frontend tests
+    needs: frontend-build
     runs-on: ubuntu-latest
     defaults:
       run:
