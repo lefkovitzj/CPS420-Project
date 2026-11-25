@@ -82,10 +82,20 @@ describe('MfaSetupPage', () => {
     }
   });
 
-  it('shows the verify heading for login with no provisioning URI', () => {
+  it.each(['register', 'login'] as const)('shows a QR code for %s setup', purpose => {
+    const provisioningUri = 'otpauth://totp/CPS420:foo%40udayton.edu?secret=JBSWY3DPEHPK3PXP&issuer=CPS420';
+    render(<MfaSetupPage challengeToken="test-token" purpose={purpose} provisioningUri={provisioningUri} />);
+
+    expect(screen.getByRole('heading', { name: 'Set up two-factor authentication' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Authenticator setup QR code' })).toBeVisible();
+    expect(screen.queryByText(provisioningUri)).not.toBeInTheDocument();
+  });
+
+  it('shows only the verification form for login with no provisioning URI', () => {
     render(<MfaSetupPage challengeToken="test-token" purpose="login" />);
 
     expect(screen.getByRole('heading', { name: 'Enter your two-factor code' })).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: 'Authenticator setup QR code' })).not.toBeInTheDocument();
   });
 
   it('Shows an error when the server cannot be reached', async () => {
