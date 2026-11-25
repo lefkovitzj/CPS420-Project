@@ -4,9 +4,10 @@ type MfaSetupProps = {
   challengeToken: string;
   provisioningUri?: string;
   purpose: 'register' | 'login';
+  onLogin?: () => void;
 };
 
-export default function MfaSetupPage({ challengeToken, provisioningUri, purpose }: MfaSetupProps) {
+export default function MfaSetupPage({ challengeToken, provisioningUri, purpose, onLogin }: MfaSetupProps) {
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -43,6 +44,7 @@ export default function MfaSetupPage({ challengeToken, provisioningUri, purpose 
         if (data?.access_token) {
           localStorage.setItem('access_token', data.access_token);
           setSuccess('Account logged in.');
+          onLogin?.();
           return;
         }
 

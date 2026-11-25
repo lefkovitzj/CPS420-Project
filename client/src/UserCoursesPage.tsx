@@ -1,63 +1,64 @@
-import { useEffect, useState } from "react";
-export interface UserCourseItem {
-  id: number;
-  course_id: number;
-  subject: string;
-  course_number: string;
-  created_at: string; 
-}
+import { useEffect, useState } from 'react';
+import { api, apiRequest, type ApiError } from './api';
 
- export default function UserCourseList() {
-  const [courses, setCourses] = useState<UserCourseItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
+type SavedCourse = { id: number; subject: string; course_number: string };
+
+export default function UserCoursesPage() {
+  const [courses, setCourses] = useState<SavedCourse[] | null>(null);
+  const [error, setError] = useState<ApiError | null>(null);
+  const [removing, setRemoving] = useState<number | null>(null);
+  const [message, setMessage] = useState('');
 
   useEffect(() => {
-    const fetchCourses = async () => {
-      try {
-        const response = await fetch("/api/user-courses", {
-                 });
+    const controller = new AbortController();
+    api<SavedCourse[]>('/profile/courses', { signal: controller.signal })
+      .then(rows => { if (!controller.signal.aborted) setCourses(rows); })
+      .catch(e => { if (!controller.signal.aborted) setError(e); });
+    return () => controller.abort();
+  }, []);
 
-        if (response.ok) {
-           const data: UserCourseItem[] = await response.json();
-           setCourses(data);
-           setSuccess("Courses retrieved")
-        }else{
-            setError("Cannot get data")
-        }      
-        
-      } catch {
-        setError("Could not connect to server");
-      } finally {
-        setLoading(false);
+  async function removeCourse({ id, subject, course_number }: SavedCourse) {
+    setRemoving(id);
+    setError(null);
+    setMessage('');
+    try {
+      await apiRequest('/profile/courses', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject, course_number }),
+      });
+    } catch (e) {
+      const failure: ApiError = e instanceof Error ? e : new Error('Could not remove the course.');
+      if (failure.status !== 404) {
+        setError(failure);
+        return;
       }
-    };
-
-    fetchCourses();
-  } );
-
+    } finally {
+      setRemoving(null);
+    }
+    setCourses(rows => rows && rows.filter(course => course.id !== id));
+    setMessage(`${subject} ${course_number} is no longer in your courses.`);
+  }
 
   return (
-    <main className="auth-card">
-          
-        <table>
-        <thead>
-            <tr>
-            <th>Your Courses</th>
-            <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            {courses.map((item) => (
-            <tr key={item.id}>
-                <td>{item.subject} {item.course_number}</td>
-            </tr>
-            ))}
-        </tbody>
-        </table>
-        {success && <p className="form-message form-message--success" role="status">{success}</p>}
-        {error && <p className="form-message form-message--error" role="alert">{error}</p>}
+    <main className="auth-card course-page">
+      <h1>My courses</h1>
+      {courses === null && !error && <p role="status">Loading your courses…</p>}
+      {error && <p role="alert" className="form-message form-message--error">
+        {error.message} {error.status === 401 && <a href="/login">Log in</a>}
+      </p>}
+      {message && <p role="status">{message}</p>}
+      {courses?.length === 0 && <p>Your course list is empty. <a href="/courses">Browse courses</a></p>}
+      {courses && courses.length > 0 && <ul>
+        {courses.map(course => <li key={course.id}>
+          {course.subject} {course.course_number}
+          <button type="button" className="secondary-button" disabled={removing !== null}
+            aria-label={`Remove ${course.subject} ${course.course_number}`}
+            onClick={() => removeCourse(course)}>
+            {removing === course.id ? 'Removing…' : 'Remove'}
+          </button>
+        </li>)}
+      </ul>}
     </main>
   );
 }

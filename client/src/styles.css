@@ -181,6 +181,20 @@ a:hover {
   color: #172b4d;
 }
 
+.course-page select {
+  width: 100%;
+}
+
+.course-page li .secondary-button {
+  width: auto;
+  margin: 4px 0 4px 8px;
+}
+
+.course-page button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .form-message {
   margin: 0;
   padding: 12px;
