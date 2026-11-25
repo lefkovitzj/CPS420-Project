@@ -10,6 +10,7 @@ permissions:
 jobs:
   backend-tests:
     name: Backend tests
+    needs: backend-lint
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -57,6 +58,7 @@ jobs:
 
   backend-lint:
     name: Backend lint
+    needs: backend-build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -77,8 +79,39 @@ jobs:
       - name: Run Pylint
         run: uv run pylint .
 
+  backend-build:
+    name: Backend build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+
+    # Throwaway values for the build test
+    env:
+      POSTGRES_USER: build
+      POSTGRES_PASSWORD: build
+      POSTGRES_DB: build
+      JWT_SECRET: build-only-placeholder
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: server/uv.lock
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Verify the application imports
+        run: uv run python -c "import main; print(main.app.title)"
+
   frontend-tests:
     name: Frontend tests
+    needs: frontend-build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -99,3 +132,26 @@ jobs:
 
       - name: Run frontend tests
         run: npm run test:coverage
+
+  frontend-build:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check and bundle
+        run: npm run build
