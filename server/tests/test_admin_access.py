@@ -1,7 +1,5 @@
 from contextlib import closing
-from datetime import UTC, datetime, timedelta
 
-import pyotp
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import text
@@ -10,7 +8,6 @@ from sqlalchemy.orm import sessionmaker
 from admin_access import add_admin_column, promote_user
 from database import engine, get_db
 from main import app
-from routes import auth
 from routes.auth import DASHBOARD_COOKIE
 
 
@@ -33,49 +30,11 @@ def accounts():
             app.dependency_overrides.pop(get_db)
 
 
-@pytest.fixture
-def clock(monkeypatch):
-    class Clock(datetime):
-        current = datetime.now(UTC).replace(microsecond=0)
-
-        @classmethod
-        def now(cls, tz):
-            return cls.current.astimezone(tz)
-
-    monkeypatch.setattr(auth, "datetime", Clock)
-    return Clock
-
-
-def sign_up(client, name, clock):
-    email = f"{name}@udayton.edu"
-    registered = client.post("/auth/register", json={"email": email, "password": "abc123", "is_admin": True})
-    assert registered.status_code == 202
-    setup = registered.json()
-    authenticator = pyotp.parse_uri(setup["provisioning_uri"])
-    verified = client.post(
-        "/auth/register/verify",
-        json={"challenge_token": setup["challenge_token"], "otp": authenticator.at(clock.current)},
-    )
-    assert verified.status_code == 201
-    assert verified.json()["is_admin"] is False
-
-    clock.current += timedelta(seconds=30)
-    login = client.post("/auth/login", data={"username": email, "password": "abc123"})
-    assert login.status_code == 202
-    verified_login = client.post(
-        "/auth/login/verify",
-        json={"challenge_token": login.json()["challenge_token"], "otp": authenticator.at(clock.current)},
-    )
-    assert verified_login.status_code == 200
-    assert client.cookies.get(DASHBOARD_COOKIE) is not None
-    return verified.json()["id"], {"Authorization": f"Bearer {verified_login.json()['access_token']}"}
-
-
-def test_dashboard_and_management_authorize_against_the_current_role(accounts, clock):
+def test_dashboard_and_management_authorize_against_the_current_role(accounts, sign_up):
     with closing(TestClient(app)) as client:
         assert client.get("/admin/access").status_code == 401
         assert client.get("/admin/users").status_code == 401
-        user_id, bearer = sign_up(client, "first", clock)
+        user_id, bearer = sign_up(client, "first", request_admin=True)
         role_url = f"/admin/users/{user_id}/role"
         assert client.get("/admin/access").status_code == 403
         assert client.get("/admin/users", headers=bearer).status_code == 403
@@ -94,7 +53,7 @@ def test_dashboard_and_management_authorize_against_the_current_role(accounts, c
         assert "password_hash" not in listing.json()[0]
 
         with closing(TestClient(app)) as second:
-            second_id, second_bearer = sign_up(second, "second", clock)
+            second_id, second_bearer = sign_up(second, "second", request_admin=True)
             assert client.patch(f"/admin/users/{second_id}/role", json={"is_admin": True}, headers=bearer).status_code == 200
             self_change = client.patch(role_url, json={"is_admin": False}, headers=bearer)
             assert self_change.status_code == 409

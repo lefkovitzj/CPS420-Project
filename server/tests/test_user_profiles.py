@@ -11,11 +11,10 @@ from main import app
 
 @pytest.fixture
 def profile_env():
-    # Temp tables keep users, catalog courses, and saved user_courses isolated per test.
     with engine.connect() as conn, conn.begin():
-        conn.execute(text("CREATE TEMP TABLE users (LIKE users INCLUDING ALL) ON COMMIT DROP"))
-        conn.execute(text("CREATE TEMP TABLE courses (LIKE courses INCLUDING ALL) ON COMMIT DROP"))
-        conn.execute(text("CREATE TEMP TABLE user_courses (LIKE user_courses INCLUDING ALL) ON COMMIT DROP"))
+        tables = ("users", "authenticators", "trusted_devices", "pending_authentications", "courses", "user_courses")
+        for table in tables:
+            conn.execute(text(f"CREATE TEMP TABLE {table} (LIKE {table} INCLUDING ALL) ON COMMIT DROP"))
 
         conn.execute(
             text(
@@ -42,18 +41,6 @@ def profile_env():
             app.dependency_overrides.pop(get_db)
 
 
-def sign_up(client, name):
-    email = f"{name}@udayton.edu"
-    registered = client.post(
-        "/auth/register",
-        json={"email": email, "password": "abc123", "is_admin": False},
-    )
-    assert registered.status_code == 201
-    login = client.post("/auth/login", data={"username": email, "password": "abc123"})
-    assert login.status_code == 200
-    return registered.json()["id"], {"Authorization": f"Bearer {login.json()['access_token']}"}
-
-
 def test_profile_courses_requires_auth():
     with closing(TestClient(app)) as client:
         assert client.get("/profile/courses").status_code == 401
@@ -66,7 +53,7 @@ def test_profile_courses_requires_auth():
         )
 
 
-def test_add_and_list_user_courses_normalizes_and_scopes_to_user(profile_env):
+def test_add_and_list_user_courses_normalizes_and_scopes_to_user(profile_env, sign_up):
     with closing(TestClient(app)) as client, closing(TestClient(app)) as other_client:
         _, bearer = sign_up(client, "student1")
         _, other_bearer = sign_up(other_client, "student2")
@@ -111,7 +98,7 @@ def test_add_and_list_user_courses_normalizes_and_scopes_to_user(profile_env):
         assert other_list.json() == []
 
 
-def test_add_user_course_rejects_duplicates_missing_and_blank_values(profile_env):
+def test_add_user_course_rejects_duplicates_missing_and_blank_values(profile_env, sign_up):
     with closing(TestClient(app)) as client:
         _, bearer = sign_up(client, "student1")
 
@@ -153,7 +140,7 @@ def test_add_user_course_rejects_duplicates_missing_and_blank_values(profile_env
         )
         assert whitespace.status_code == 422 
 
-def test_delete_user_course_removes_course_and_scopes_to_user(profile_env):
+def test_delete_user_course_removes_course_and_scopes_to_user(profile_env, sign_up):
     with closing(TestClient(app)) as client, closing(TestClient(app)) as other_client:
         _, bearer = sign_up(client, "student1")
         _, other_bearer = sign_up(other_client, "student2")
@@ -197,7 +184,7 @@ def test_delete_user_course_removes_course_and_scopes_to_user(profile_env):
         assert student2_courses.json()[0]["subject"] == "BIO"
         assert student2_courses.json()[0]["course_number"] == "151"
         
-def test_delete_user_course_rejects_missing_and_invalid_courses(profile_env):
+def test_delete_user_course_rejects_missing_and_invalid_courses(profile_env, sign_up):
     with closing(TestClient(app)) as client:
         _, bearer = sign_up(client, "student1")
 
