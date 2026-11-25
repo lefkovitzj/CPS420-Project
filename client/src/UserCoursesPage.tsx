@@ -1,16 +1,63 @@
-import {useState} from 'react'
-import { stringify } from 'vitest/internal/browser';
+import { useEffect, useState } from "react";
+export interface UserCourseItem {
+  id: number;
+  course_id: number;
+  subject: string;
+  course_number: string;
+  created_at: string; 
+}
 
-export default function AddCourse() {
-   
-    
-    return(
+ export default function UserCourseList() {
+  const [courses, setCourses] = useState<UserCourseItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+
+  useEffect(() => {
+    const fetchCourses = async () => {
+      try {
+        const response = await fetch("/api/user-courses", {
+                 });
+
+        if (response.ok) {
+           const data: UserCourseItem[] = await response.json();
+           setCourses(data);
+           setSuccess("Courses retrieved")
+        }else{
+            setError("Cannot get data")
+        }      
+        
+      } catch {
+        setError("Could not connect to server");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCourses();
+  } );
+
+
+  return (
     <main className="auth-card">
-      <p className="eyebrow">CPS420</p>
-      <h1>Your Courselist</h1>
-        
-        
-        </main>
-        
-    )
+          
+        <table>
+        <thead>
+            <tr>
+            <th>Your Courses</th>
+            <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {courses.map((item) => (
+            <tr key={item.id}>
+                <td>{item.subject} {item.course_number}</td>
+            </tr>
+            ))}
+        </tbody>
+        </table>
+        {success && <p className="form-message form-message--success" role="status">{success}</p>}
+        {error && <p className="form-message form-message--error" role="alert">{error}</p>}
+    </main>
+  );
 }

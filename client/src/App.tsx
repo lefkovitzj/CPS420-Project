@@ -6,8 +6,9 @@ import LoginPage from './LoginPage';
 import RegisterPage from './RegisterPage';
 import MfaSetupPage from './MfaSetupPage';
 import AddCoursePage from './AddCoursePage'
+import UserCoursePage from './UserCoursesPage'
 
-type Page = 'home' | 'register' | 'login' | 'courses' | 'admin' | 'addcourse';
+type Page = 'home' | 'register' | 'login' | 'courses' | 'admin' | 'addcourse' | 'usercourses';
 type Account = { id: string; is_admin: boolean };
 
 type MfaChallenge = {
@@ -28,6 +29,9 @@ function pageFromPath(): Page {
 
   if(window.location.pathname =='/addcourse'){
     return 'addcourse'
+  }
+  if(window.location.pathname =='/usercourses'){
+    return 'usercourses'
   }
 
   if (window.location.pathname === '/courses') return 'courses';
@@ -112,7 +116,8 @@ export default function App() {
       {logoutError && <p role="alert">{logoutError}</p>}
       {page === 'home' && <HomePage signedOut={account === null} />}
       {page === 'register' && <RegisterPage onMfaRequired={(challenge) => setMfa({ ...challenge, purpose: 'register' })} />}
-      {page == 'addcourse' && <AddCoursePage/>}
+      {page === 'addcourse' && <AddCoursePage/>}
+      {page === 'usercourses' && <UserCoursePage/>}
       {page === 'login' && (
         <LoginPage
           onLogin={refreshAccount}

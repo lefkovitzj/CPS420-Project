@@ -1,5 +1,6 @@
-import {useState} from 'react'
+import {Component, useState} from 'react'
 import { stringify } from 'vitest/internal/browser';
+
 
 export default function AddCourse() {
     const [subject,setSubject] = useState('');
@@ -7,29 +8,32 @@ export default function AddCourse() {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
 
-    async function handleSubmit(){
-        try{
-            const res = await fetch('/api/user_profile/add_user_course',{
+    async function handleSubmit(e: React.FormEvent){
+        e.preventDefault();
+        setSuccess('');
+        setError('');
+       try{
+            const response = await fetch('/api/profile/courses',{ //url is incorrect; fix here
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({subject, course_number}),
+                body: JSON.stringify({subject:subject, course_number:course_number}),
             }
             );
 
-            if(res.ok){
+            if(response.ok){
                setSuccess('Course added!');
-               return;
+               return ;
             }
             
             // error 401: invalid course id
-            if (res.status === 401) {
+            if (response.status === 401) {
                 setError('Invalid Course ID');
             } else{
-                setError('Could not find course id');
+                setError('Adding course faile');
             }
           
         }catch{
-            setError('Could not reach the server.');
+          setError('Could not reach the server.');
         }
     }
 
@@ -39,6 +43,7 @@ export default function AddCourse() {
       <p className="eyebrow">CPS420</p>
       <h1>Add Course</h1>
       <p className="auth-description">Add a course to your profile.</p>
+      
         <form className="AddCourse"  onSubmit={handleSubmit}>
             <label className="form-field"> Subject
                 
@@ -65,16 +70,16 @@ export default function AddCourse() {
                     </label>
 
         <button className="secondary-button" type="submit">Add Course</button>
-        
-        {success && <p className="form-message form-message--success" role="status">{success}</p>}
         {error && <p className="form-message form-message--error" role="alert">{error}</p>}
-        
+        {success && <p className="form-message form-message--success" role="status">{success}</p>}
+      
         </form>
 
         <p className="auth-footer">
-            Check your courses here: <a href="/login">Courselist</a>.
+            Check your courses here: <a href="./usercourses">Courselist</a>.
         </p>
         </main>
         
     )
 }
+
