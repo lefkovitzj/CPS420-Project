@@ -6,6 +6,7 @@ import App from './App';
 
 describe('App', () => {
   afterEach(() => {
+    vi.unstubAllGlobals();
     window.history.replaceState(null, '', '/');
     localStorage.clear();
     vi.restoreAllMocks();
@@ -26,6 +27,31 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Count: 0' }));
 
     expect(screen.getByRole('button', { name: 'Count: 1' })).toBeInTheDocument();
+  });
+
+  it.each(['trusted browser', 'authenticator code'])('goes home after a successful login with a %s', async method => {
+    window.history.replaceState(null, '', '/login');
+    const replace = vi.fn();
+    vi.stubGlobal('location', { ...window.location, replace });
+    const request = vi.spyOn(globalThis, 'fetch');
+    if (method === 'authenticator code') {
+      request.mockResolvedValueOnce(Response.json({ challenge_token: 'challenge' }, { status: 202 }));
+    }
+    request.mockResolvedValueOnce(Response.json({ access_token: 'signed-in-token' }));
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.type(screen.getByLabelText('Email'), 'student@udayton.edu');
+    await user.type(screen.getByLabelText('Password'), 'password123');
+    await user.click(screen.getByRole('button', { name: 'Log in' }));
+    if (method === 'authenticator code') {
+      expect(replace).not.toHaveBeenCalled();
+      await user.type(screen.getByLabelText('Authenticator code'), '123456');
+      await user.click(screen.getByRole('button', { name: 'Verify code' }));
+    }
+
+    expect(localStorage.getItem('access_token')).toBe('signed-in-token');
+    expect(replace).toHaveBeenCalledWith('/');
   });
 
   it('only logs out after the user confirms', async () => {
@@ -49,6 +75,20 @@ describe('App', () => {
     expect(confirm).toHaveBeenCalledTimes(2);
     expect(request).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' });
     expect(localStorage.getItem('access_token')).toBeNull();
+  });
+
+  it('shows saved courses when account details are temporarily unavailable', async () => {
+    window.history.replaceState(null, '', '/usercourses');
+    localStorage.setItem('access_token', 'student-token');
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async path => {
+      if (path === '/api/auth/me') return new Response(null, { status: 503 });
+      if (path === '/api/profile/courses') return Response.json([{ id: 1, subject: 'CPS', course_number: '420' }]);
+      throw new Error(`Unexpected request: ${path}`);
+    });
+    render(<App />);
+
+    expect(await screen.findByRole('button', { name: 'Remove CPS 420' })).toBeVisible();
+    expect(screen.queryByRole('link', { name: 'Log in' })).not.toBeInTheDocument();
   });
 
   it.each([true, false])('restores the empty catalog navigation for an existing session (admin: %s)', async isAdmin => {

@@ -1,5 +1,5 @@
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 import pyotp
 import pytest
@@ -20,19 +20,6 @@ client = TestClient(app)
 @pytest.fixture(autouse=True)
 def reset_cookies():
     client.cookies.clear()
-
-
-@pytest.fixture
-def clock(monkeypatch):
-    class Clock(datetime):
-        current = datetime.now(UTC).replace(microsecond=0)
-
-        @classmethod
-        def now(cls, tz):
-            return cls.current.astimezone(tz)
-
-    monkeypatch.setattr(auth, "datetime", Clock)
-    return Clock
 
 
 def new_email():

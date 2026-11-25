@@ -1,12 +1,13 @@
 import { useEffect, useReducer, useState } from 'react';
-import { api } from './api';
+import { api, type ApiError } from './api';
 import AdminPage from './AdminPage';
 import CoursesPage from './CoursesPage';
 import LoginPage from './LoginPage';
 import RegisterPage from './RegisterPage';
 import MfaSetupPage from './MfaSetupPage';
+import UserCoursesPage from './UserCoursesPage';
 
-type Page = 'home' | 'register' | 'login' | 'courses' | 'admin';
+type Page = 'home' | 'register' | 'login' | 'courses' | 'admin' | 'usercourses';
 type Account = { id: string; is_admin: boolean };
 
 type MfaChallenge = {
@@ -15,6 +16,9 @@ type MfaChallenge = {
   purpose: 'register' | 'login';
 };
 
+function goHomeAfterLogin() {
+  window.location.replace('/');
+}
 
 function pageFromPath(): Page {
   if (window.location.pathname === '/login') {
@@ -25,7 +29,8 @@ function pageFromPath(): Page {
     return 'register';
   }
 
-  if (window.location.pathname === '/courses') return 'courses';
+  if (['/courses', '/addcourse'].includes(window.location.pathname)) return 'courses';
+  if (window.location.pathname === '/usercourses') return 'usercourses';
   if (['/admin', '/admin/'].includes(window.location.pathname)) return 'admin';
   return 'home';
 }
@@ -56,18 +61,20 @@ export default function App() {
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState('');
   const [mfa, setMfa] = useState<MfaChallenge | null>(null);
+  const token = localStorage.getItem('access_token');
+  // The course API can use the token while /auth/me loads the user's role.
+  const hasSession = Boolean(token) && account !== null;
 
   useEffect(() => {
-    if (!localStorage.getItem('access_token')) {
-      setAccount(null);
-      return;
-    }
+    if (!token) return;
     const controller = new AbortController();
     api<Account>('/auth/me', { signal: controller.signal })
       .then(user => { if (!controller.signal.aborted) setAccount(user); })
-      .catch(() => { if (!controller.signal.aborted) setAccount(null); });
+      .catch((error: ApiError) => {
+        if (!controller.signal.aborted) setAccount(error.status === 401 ? null : undefined);
+      });
     return () => controller.abort();
-  }, [sessionVersion]);
+  }, [sessionVersion, token]);
 
   async function logOut() {
     if (!window.confirm('Are you sure you want to log out?')) return;
@@ -90,6 +97,7 @@ export default function App() {
         challengeToken={mfa.challengeToken}
         provisioningUri={mfa.provisioningUri}
         purpose={mfa.purpose}
+        onLogin={goHomeAfterLogin}
       />
     );
   }
@@ -99,20 +107,29 @@ export default function App() {
       <nav className="site-nav" aria-label="Main navigation">
         <a href="/" aria-current={page === 'home' ? 'page' : undefined}>Home</a>
         <a href="/courses" aria-current={page === 'courses' ? 'page' : undefined}>Browse courses</a>
-        {account?.is_admin && <a href="/admin" aria-current={page === 'admin' ? 'page' : undefined}>Admin dashboard</a>}
-        {account === null && <a href="/login" aria-current={page === 'login' ? 'page' : undefined}>Log in</a>}
-        {account && <button type="button" onClick={logOut} disabled={loggingOut}>Log out</button>}
+        {hasSession && <a href="/usercourses" aria-current={page === 'usercourses' ? 'page' : undefined}>My courses</a>}
+        {hasSession && account?.is_admin && <a href="/admin" aria-current={page === 'admin' ? 'page' : undefined}>Admin dashboard</a>}
+        {hasSession
+          ? <button type="button" onClick={logOut} disabled={loggingOut}>Log out</button>
+          : <a href="/login" aria-current={page === 'login' ? 'page' : undefined}>Log in</a>}
       </nav>
       {logoutError && <p role="alert">{logoutError}</p>}
-      {page === 'home' && <HomePage signedOut={account === null} />}
+      {page === 'home' && <HomePage signedOut={!hasSession} />}
       {page === 'register' && <RegisterPage onMfaRequired={(challenge) => setMfa({ ...challenge, purpose: 'register' })} />}
+      {(page === 'courses' || page === 'usercourses') && !hasSession && (
+        <main className="auth-card">
+          <h1>{page === 'courses' ? 'Course catalog' : 'My courses'}</h1>
+          <p><a href="/login">Log in</a> to browse and manage your courses.</p>
+        </main>
+      )}
+      {page === 'courses' && hasSession && <CoursesPage isAdmin={account?.is_admin === true} />}
+      {page === 'usercourses' && hasSession && <UserCoursesPage />}
       {page === 'login' && (
         <LoginPage
-          onLogin={refreshAccount}
+          onLogin={goHomeAfterLogin}
           onMfaRequired={(challenge) => setMfa({ ...challenge, purpose: 'login' })}
         />
       )}
-      {page === 'courses' && <CoursesPage isAdmin={account?.is_admin === true} />}
       {page === 'admin' && <AdminPage currentUserId={account?.id} onAccessDenied={refreshAccount} />}
     </div>
   );
